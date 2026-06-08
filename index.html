@@ -52,7 +52,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--fon
 .stat-val{font-size:22px;font-weight:300}
 .stat-val.g{color:var(--green)}.stat-val.a{color:var(--amber)}.stat-val.r{color:var(--red)}.stat-val.b{color:var(--blue)}
 .pill{display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding:0 8px;height:24px;min-width:82px;border-radius:20px;font-weight:500;white-space:nowrap}
-.p-ns{background:var(--surf2);color:var(--tx2)}.p-up{background:var(--red-bg);color:var(--red-tx);}.p-ot{background:var(--green-bg);color:#27500A}.p-ar{background:var(--amber-bg);color:#633806}.p-dn{background:var(--blue-bg);color:var(--blue-tx)}.p-dim{background:var(--purple-bg);color:var(--purple-tx);font-size:10px}.p-lead{background:var(--purple-bg);color:var(--purple-tx)}.p-lag{background:var(--teal-bg);color:var(--teal-tx)}
+.p-ns{background:var(--surf2);color:var(--tx2)}.p-up{background:var(--red-bg);color:var(--red-tx);}.p-ot{background:var(--green-bg);color:#27500A}.p-ar{background:var(--amber-bg);color:#633806}.p-dn{background:var(--blue-bg);color:var(--blue-tx)}.p-dim{background:var(--purple-bg);color:var(--purple-tx);font-size:10px}.p-lead{background:var(--purple-bg);color:var(--purple-tx)}.p-lag{background:var(--teal-bg);color:var(--teal-tx)}.p-rec{background:#EDE9FE;color:#5B21B6}
 .score-chip{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:20px;background:var(--surf2);color:var(--tx2)}
 .rock-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);margin-bottom:8px;overflow:hidden}
 .rock-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer}
@@ -533,7 +533,7 @@ function currentQ() {
 }
 
 function statusPill(s) {
-  var m = {Done:'p-dn','On Track':'p-ot','At Risk':'p-ar','Not Started':'p-ns','Unplanned':'p-up'};
+  var m = {Done:'p-dn','On Track':'p-ot','At Risk':'p-ar','Not Started':'p-ns','Unplanned':'p-up','Recurring':'p-rec'};
   return '<span class="pill '+(m[s]||'p-ns')+'">'+esc(s)+'</span>';
 }
 
@@ -592,7 +592,7 @@ function sortByScore(arr) {
 }
 
 function sortSubrocksByStatus(subrocks) {
-  var order = {'Done':0,'On Track':1,'At Risk':2,'Not Started':3,'Unplanned':4};
+  var order = {'Done':0,'On Track':1,'At Risk':2,'Not Started':3,'Recurring':4,'Unplanned':5};
   return subrocks.slice().sort(function(a,b){
     var sa = order[a.status]!==undefined ? order[a.status] : 3;
     var sb = order[b.status]!==undefined ? order[b.status] : 3;
@@ -947,15 +947,18 @@ function buildRockCard(type,rock,ri) {
     tabBar.className='sr-tabs';
     var t1=document.createElement('button'); t1.className='sr-tab'+(tab==='subrocks'?' active':''); t1.textContent='Sub-Rocks';
     var t2=document.createElement('button'); t2.className='sr-tab'+(tab==='milestones'?' active':''); t2.textContent='Week-by-Week Milestones';
+    var t3=document.createElement('button'); t3.className='sr-tab'+(tab==='kpis'?' active':''); t3.textContent='KPIs';
     t1.addEventListener('click',function(e){e.stopPropagation();setSRTab(type,rock.id,'subrocks');});
     t2.addEventListener('click',function(e){e.stopPropagation();setSRTab(type,rock.id,'milestones');});
-    tabBar.appendChild(t1); tabBar.appendChild(t2);
+    t3.addEventListener('click',function(e){e.stopPropagation();setSRTab(type,rock.id,'kpis');});
+    tabBar.appendChild(t1); tabBar.appendChild(t2); tabBar.appendChild(t3);
     wrap.appendChild(tabBar);
 
     var body=document.createElement('div');
     body.className='sr-body';
     if(tab==='subrocks') buildSubrocksTab(body,type,rock,ri);
-    else buildMilestonesTab(body,type,rock);
+    else if(tab==='milestones') buildMilestonesTab(body,type,rock);
+    else if(tab==='kpis') buildKPIsTab(body,type,rock);
     wrap.appendChild(body);
     card.appendChild(wrap);
   }
@@ -964,19 +967,20 @@ function buildRockCard(type,rock,ri) {
 
 function buildSubrocksTab(container,type,rock,ri) {
   var isMobile = window.innerWidth <= 768;
-  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '24px 1fr 72px 110px 130px 130px 110px 32px';
+  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '24px 1fr 72px 110px 130px 130px 110px 80px 32px';
   var hdr=document.createElement('div');
   hdr.className='sr-hdr'; hdr.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;';
   hdr.innerHTML = isMobile
     ? '<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Dept</span><span class="col">Status</span><span class="col"></span>'
-    : '<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Owner</span><span class="col">Department</span><span class="col">Target Date</span><span class="col">Conclusion Date</span><span class="col">Status</span><span class="col"></span>';
+    : '<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Owner</span><span class="col">Department</span><span class="col">Target Date</span><span class="col">Conclusion Date</span><span class="col">Status</span><span class="col">Recurring</span><span class="col"></span>';
   container.appendChild(hdr);
 
   var sortedSubrocks = sortSubrocksByStatus(rock.subrocks);
   sortedSubrocks.forEach(function(sub,si){
+    var isRecurring = sub.recurring === true;
     var row=document.createElement('div');
     row.className='sr-row';
-    var rowBg = !sub.targetDate ? 'background:rgba(163,45,45,0.05);' : '';
+    var rowBg = isRecurring ? 'background:rgba(91,33,182,0.04);' : (!sub.targetDate && !isRecurring ? 'background:rgba(163,45,45,0.05);' : '');
     row.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:start;'+rowBg;
 
     var idx=document.createElement('span'); idx.className='sr-idx'; idx.textContent=(ri+1)+'.'+(si+1);
@@ -985,7 +989,12 @@ function buildSubrocksTab(container,type,rock,ri) {
     var titleEl=document.createElement('div'); titleEl.className='ed'; titleEl.style.cssText='font-weight:500;white-space:normal;overflow:visible;text-overflow:unset;word-break:break-word;'; titleEl.contentEditable='true'; titleEl.textContent=sub.title||'';
     titleEl.addEventListener('blur',function(){sub.title=this.textContent; save();});
     info.appendChild(titleEl);
-    if(!sub.targetDate){
+    if(isRecurring){
+      var recTag=document.createElement('span');
+      recTag.textContent='recurring';
+      recTag.style.cssText='font-size:9px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:#5B21B6;background:#EDE9FE;padding:1px 5px;border-radius:8px;margin-top:2px;display:inline-block;';
+      info.appendChild(recTag);
+    } else if(!sub.targetDate){
       var upTag=document.createElement('span');
       upTag.textContent='unplanned';
       upTag.style.cssText='font-size:9px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--red);background:var(--red-bg);padding:1px 5px;border-radius:8px;margin-top:2px;display:inline-block;';
@@ -1001,21 +1010,48 @@ function buildSubrocksTab(container,type,rock,ri) {
     portcoSel.addEventListener('change',function(){ sub.dept=this.value; save(); });
 
     var targetInp=document.createElement('input'); targetInp.type='date'; targetInp.className='ctrl'; targetInp.style.cssText='font-size:11px;width:100%'; targetInp.value=sub.targetDate||'';
+    targetInp.disabled = isRecurring;
+    if(isRecurring) targetInp.style.opacity='0.3';
     targetInp.addEventListener('change',function(){
       sub.targetDate=this.value;
-      save(); reRender(type); renderStats(type+'-stats', getRocks(type));
+      save(); reRender();
     });
 
     var doneInp=document.createElement('input'); doneInp.type='date'; doneInp.className='ctrl'; doneInp.style.cssText='font-size:11px;width:100%'; doneInp.value=sub.doneDate||'';
+    doneInp.disabled = isRecurring;
+    if(isRecurring) doneInp.style.opacity='0.3';
     doneInp.addEventListener('change',function(){
       sub.doneDate=this.value;
       if(this.value) sub.status='Done';
-      save(); reRender(type); renderDashInd(); 
+      save(); reRender(); renderDashInd();
     });
 
     var stSel=document.createElement('select'); stSel.className='ctrl'; stSel.style.cssText='font-size:11px;width:100%';
-    STATUSES.forEach(function(s){ var o=document.createElement('option'); o.textContent=s; if(sub.status===s) o.selected=true; stSel.appendChild(o); });
-    stSel.addEventListener('change',function(){sub.status=this.value; save(); reRender(type); renderDashInd(); });
+    if(isRecurring){
+      var rOpt=document.createElement('option'); rOpt.textContent='Recurring'; rOpt.selected=true; stSel.appendChild(rOpt);
+      stSel.disabled=true; stSel.style.opacity='0.5';
+    } else {
+      STATUSES.forEach(function(s){ var o=document.createElement('option'); o.textContent=s; if(sub.status===s) o.selected=true; stSel.appendChild(o); });
+      stSel.addEventListener('change',function(){sub.status=this.value; save(); reRender(); renderDashInd(); });
+    }
+
+    // Recurring checkbox
+    var recWrap=document.createElement('label');
+    recWrap.style.cssText='display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:11px;color:var(--tx2);';
+    var recChk=document.createElement('input'); recChk.type='checkbox'; recChk.checked=isRecurring;
+    recChk.style.cssText='width:13px;height:13px;cursor:pointer;accent-color:#5B21B6;';
+    recChk.addEventListener('change',function(){
+      sub.recurring=this.checked;
+      if(this.checked){
+        sub.status='Recurring';
+        sub.targetDate='';
+        sub.doneDate='';
+      } else {
+        sub.status='Not Started';
+      }
+      save(); reRender();
+    });
+    recWrap.appendChild(recChk);
 
     var delBtn=document.createElement('button'); delBtn.className='btn-del'; delBtn.innerHTML='&#10005;';
     delBtn.title='Delete sub-rock';
@@ -1023,7 +1059,7 @@ function buildSubrocksTab(container,type,rock,ri) {
       confirmDelete(
         'Delete Sub-Rock?',
         'This will permanently delete "'+sub.title+'". This cannot be undone.',
-        function(){ rock.subrocks=rock.subrocks.filter(function(s){return s.id!==sub.id;}); save(); reRender(type); renderDashInd();  }
+        function(){ rock.subrocks=rock.subrocks.filter(function(s){return s.id!==sub.id;}); save(); reRender(); renderDashInd(); }
       );
     });
 
@@ -1031,7 +1067,7 @@ function buildSubrocksTab(container,type,rock,ri) {
       row.appendChild(idx); row.appendChild(info); row.appendChild(portcoSel); row.appendChild(stSel); row.appendChild(delBtn);
     } else {
       row.appendChild(idx); row.appendChild(info); row.appendChild(ownerEl);
-      row.appendChild(portcoSel); row.appendChild(targetInp); row.appendChild(doneInp); row.appendChild(stSel); row.appendChild(delBtn);
+      row.appendChild(portcoSel); row.appendChild(targetInp); row.appendChild(doneInp); row.appendChild(stSel); row.appendChild(recWrap); row.appendChild(delBtn);
     }
     container.appendChild(row);
   });
@@ -1046,14 +1082,14 @@ function buildSubrocksTab(container,type,rock,ri) {
   var addBtn=document.createElement('button'); addBtn.className='btn btn-ghost'; addBtn.style.cssText='white-space:nowrap;flex-shrink:0;font-size:11px'; addBtn.textContent='+ Add';
   addBtn.addEventListener('click',function(){
     if(!tInp.value.trim()) return;
-    rock.subrocks.push({id:uid(),title:tInp.value.trim(),kr:'',owner:oInp.value.trim(),dept:'',score:'',targetDate:'',doneDate:'',status:sSel.value,milestones:Array(12).fill(''),msNotes:Array(12).fill('')});
+    rock.subrocks.push({id:uid(),title:tInp.value.trim(),kr:'',owner:oInp.value.trim(),dept:'',score:'',targetDate:'',doneDate:'',recurring:false,status:sSel.value,milestones:Array(12).fill(''),msNotes:Array(12).fill(''),kpis:[]});
     D.expanded[rock.id]=true; D.srTab[rock.id]='subrocks';
-    save(); reRender(type); renderDashInd(); 
+    save(); reRender(); renderDashInd();
   });
   addRow.appendChild(grid); addRow.appendChild(addBtn);
   container.appendChild(addRow);
 
-  var note=document.createElement('div'); note.className='grade-note'; note.textContent='Q Score on the rock card is set by leadership at quarter end. Setting a Conclusion Date auto-marks the sub-rock as Done.';
+  var note=document.createElement('div'); note.className='grade-note'; note.textContent='Q Score on the rock card is set by leadership at quarter end. Setting a Conclusion Date auto-marks the sub-rock as Done. Tick "Recurring" for standing tasks with no deadline.';
   container.appendChild(note);
 }
 
@@ -1129,20 +1165,6 @@ function buildMilestonesTab(container,type,rock) {
     if(!sub.milestones||sub.milestones.length!==12) sub.milestones=Array(12).fill('');
     if(!sub.msNotes||sub.msNotes.length!==12) sub.msNotes=Array(12).fill('');
 
-    // Determine target week index from sub.targetDate
-    var targetIdx = dateToWeekIdx(parseISODate(sub.targetDate));
-
-    // Determine done week index from sub.doneDate (if set) or from milestones
-    var doneIdx = -1;
-    if(sub.doneDate) {
-      doneIdx = dateToWeekIdx(parseISODate(sub.doneDate));
-    } else {
-      // Legacy: check milestones array for 'Done'
-      for(var i=0;i<sub.milestones.length;i++){
-        if(sub.milestones[i]==='Done'||sub.milestones[i]==='done') { doneIdx=i; break; }
-      }
-    }
-
     var tr=document.createElement('tr');
 
     // Sub-rock title cell
@@ -1158,87 +1180,90 @@ function buildMilestonesTab(container,type,rock) {
     // Target date display
     var tdTarget=document.createElement('td');
     tdTarget.style.cssText='font-size:11px;color:var(--tx2);text-align:center';
-    if(sub.targetDate){
+    if(sub.recurring){
+      tdTarget.innerHTML='<span style="font-size:9px;font-weight:500;color:#5B21B6;background:#EDE9FE;padding:1px 5px;border-radius:8px;text-transform:uppercase;letter-spacing:.04em;">recurring</span>';
+    } else if(sub.targetDate){
       var tDate=parseISODate(sub.targetDate);
       tdTarget.textContent=tDate?tDate.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'}):'';
     }
     tr.appendChild(tdTarget);
 
-    // Week dot cells
-    WEEK_DATES.forEach(function(w, wi){
-      var td=document.createElement('td');
-      var isCurrWeek = wi===currentWeekIdx;
-      td.style.cssText='text-align:center;padding:6px 4px;vertical-align:middle;'+(isCurrWeek?'background:rgba(24,95,165,0.07);':'');
+    if(sub.recurring){
+      // Recurring task — span all week columns with a single bar
+      var tdRec=document.createElement('td');
+      tdRec.colSpan=WEEK_DATES.length;
+      tdRec.style.cssText='padding:6px 8px;vertical-align:middle;';
+      tdRec.innerHTML='<div style="background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:500;color:#5B21B6;text-align:center;letter-spacing:.02em;">↻ Recurring Task</div>';
+      tr.appendChild(tdRec);
+    } else {
+      // Determine target week index from sub.targetDate
+      var targetIdx = dateToWeekIdx(parseISODate(sub.targetDate));
 
-      var dot=document.createElement('button');
-      dot.style.cssText='width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;display:inline-block;transition:transform .1s;outline:none;';
-
-      var isTarget = wi===targetIdx;
-      var isDone   = wi===doneIdx;
-      var isPast   = doneIdx>=0 && wi<doneIdx;
-
-      if(isDone){
-        dot.style.background='var(--green)';
-        dot.title='Done — click to clear';
-      } else if(isPast){
-        dot.style.background='var(--green-bg)';
-        dot.style.border='1.5px solid var(--green)';
-        dot.title='Completed';
-      } else if(isTarget){
-        dot.style.background='var(--red-bg)';
-        dot.style.border='2px solid var(--red)';
-        dot.title='Target deadline: '+w+' — right-click or Shift+click to move target';
+      // Determine done week index from sub.doneDate (if set) or from milestones
+      var doneIdx = -1;
+      if(sub.doneDate) {
+        doneIdx = dateToWeekIdx(parseISODate(sub.doneDate));
       } else {
-        dot.style.background='var(--surf3)';
-        dot.style.border='1.5px solid var(--bdr2)';
-        dot.title='Click to mark done · Shift+click or right-click to set as target';
+        for(var i=0;i<sub.milestones.length;i++){
+          if(sub.milestones[i]==='Done'||sub.milestones[i]==='done') { doneIdx=i; break; }
+        }
       }
 
-      dot.addEventListener('mouseenter',function(){ this.style.transform='scale(1.3)'; });
-      dot.addEventListener('mouseleave',function(){ this.style.transform='scale(1)'; });
+      // Week dot cells
+      WEEK_DATES.forEach(function(w, wi){
+        var td=document.createElement('td');
+        var isCurrWeek = wi===currentWeekIdx;
+        td.style.cssText='text-align:center;padding:6px 4px;vertical-align:middle;'+(isCurrWeek?'background:rgba(24,95,165,0.07);':'');
 
-      // Left click: mark done / clear done
-      // Shift+click or right-click: set as new target date
-      dot.addEventListener('click', function(e){
-        if(e.shiftKey){
-          // Shift+click sets this week as the new target date
-          var wd=parseWeekDate(WEEK_DATES[wi]);
-          if(wd){
-            var mm=String(wd.getMonth()+1).padStart(2,'0');
-            var dd=String(wd.getDate()).padStart(2,'0');
-            sub.targetDate=wd.getFullYear()+'-'+mm+'-'+dd;
-          }
-          save(); reRender(type); return;
-        }
-        if(isDone && doneIdx===wi){
-          sub.doneDate=''; sub.status='On Track';
+        var dot=document.createElement('button');
+        dot.style.cssText='width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;display:inline-block;transition:transform .1s;outline:none;';
+
+        var isTarget = wi===targetIdx;
+        var isDone   = wi===doneIdx;
+        var isPast   = doneIdx>=0 && wi<doneIdx;
+
+        if(isDone){
+          dot.style.background='var(--green)';
+          dot.title='Done — click to clear';
+        } else if(isPast){
+          dot.style.background='var(--green-bg)';
+          dot.style.border='1.5px solid var(--green)';
+          dot.title='Completed';
+        } else if(isTarget){
+          dot.style.background='var(--red-bg)';
+          dot.style.border='2px solid var(--red)';
+          dot.title='Target deadline: '+w+' — right-click or Shift+click to move target';
         } else {
-          var wd=parseWeekDate(WEEK_DATES[wi]);
-          if(wd){
-            var mm=String(wd.getMonth()+1).padStart(2,'0');
-            var dd=String(wd.getDate()).padStart(2,'0');
-            sub.doneDate=wd.getFullYear()+'-'+mm+'-'+dd;
+          dot.style.background='var(--surf3)';
+          dot.style.border='1.5px solid var(--bdr2)';
+          dot.title='Click to mark done · Shift+click or right-click to set as target';
+        }
+
+        dot.addEventListener('mouseenter',function(){ this.style.transform='scale(1.3)'; });
+        dot.addEventListener('mouseleave',function(){ this.style.transform='scale(1)'; });
+
+        dot.addEventListener('click', function(e){
+          if(e.shiftKey){
+            var wd=parseWeekDate(WEEK_DATES[wi]);
+            if(wd){ var mm=String(wd.getMonth()+1).padStart(2,'0'); var dd=String(wd.getDate()).padStart(2,'0'); sub.targetDate=wd.getFullYear()+'-'+mm+'-'+dd; }
+            save(); reRender(); return;
           }
-          sub.status='Done';
-        }
-        save(); reRender(type);
-      });
+          if(isDone && doneIdx===wi){ sub.doneDate=''; sub.status='On Track'; }
+          else { var wd=parseWeekDate(WEEK_DATES[wi]); if(wd){ var mm=String(wd.getMonth()+1).padStart(2,'0'); var dd=String(wd.getDate()).padStart(2,'0'); sub.doneDate=wd.getFullYear()+'-'+mm+'-'+dd; } sub.status='Done'; }
+          save(); reRender();
+        });
 
-      dot.addEventListener('contextmenu', function(e){
-        e.preventDefault();
-        // Right-click: set as new target date
-        var wd=parseWeekDate(WEEK_DATES[wi]);
-        if(wd){
-          var mm=String(wd.getMonth()+1).padStart(2,'0');
-          var dd=String(wd.getDate()).padStart(2,'0');
-          sub.targetDate=wd.getFullYear()+'-'+mm+'-'+dd;
-        }
-        save(); reRender(type);
-      });
+        dot.addEventListener('contextmenu', function(e){
+          e.preventDefault();
+          var wd=parseWeekDate(WEEK_DATES[wi]);
+          if(wd){ var mm=String(wd.getMonth()+1).padStart(2,'0'); var dd=String(wd.getDate()).padStart(2,'0'); sub.targetDate=wd.getFullYear()+'-'+mm+'-'+dd; }
+          save(); reRender();
+        });
 
-      td.appendChild(dot);
-      tr.appendChild(td);
-    });
+        td.appendChild(dot);
+        tr.appendChild(td);
+      });
+    }
 
     tbody.appendChild(tr);
   });
@@ -1261,6 +1286,146 @@ function toggleRock(type,id){ D.expanded[id]=!D.expanded[id]; save(); reRender()
 function setSRTab(type,id,tab){ D.srTab[id]=tab; save(); reRender(); }
 function reRender(){ renderAllRocks(); }
 
+// ── KPIs Tab ───────────────────────────────────────────────────────────────
+function buildKPIsTab(container, type, rock) {
+  if(!rock.kpis) rock.kpis=[];
+
+  // Parse helpers
+  function parseWeekDate(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[1],10)-1,parseInt(p[0],10)); }
+  var today=new Date(); today.setHours(0,0,0,0);
+  var currentWeekIdx=-1;
+  for(var ci=0;ci<WEEK_DATES.length;ci++){ var wd=parseWeekDate(WEEK_DATES[ci]); if(wd&&today<=wd){ currentWeekIdx=ci; break; } }
+  if(currentWeekIdx===-1) currentWeekIdx=WEEK_DATES.length-1;
+
+  // Sub-rock options for association
+  var subOptions = rock.subrocks.map(function(s){ return {id:s.id, title:s.title||'(untitled)'}; });
+
+  function renderKPITable() {
+    container.innerHTML='';
+
+    if(!rock.kpis.length){
+      var empty=document.createElement('div'); empty.className='empty'; empty.style.padding='20px';
+      empty.textContent='No KPIs yet — add one below';
+      container.appendChild(empty);
+    } else {
+      var wrap=document.createElement('div'); wrap.className='ms-wrap';
+      var tbl=document.createElement('table'); tbl.className='ms-table';
+
+      // Header
+      var thead=document.createElement('thead'); var hr=document.createElement('tr');
+      function th(txt, style){ var el=document.createElement('th'); el.style.cssText=style||''; el.textContent=txt; hr.appendChild(el); }
+      th('KPI', 'min-width:140px;position:sticky;left:0;background:var(--surf);');
+      th('Sub-Rock', 'width:130px;');
+      th('Target', 'width:72px;');
+      th('Type', 'width:72px;');
+      WEEK_DATES.forEach(function(w, wi){
+        var isCurr = wi===currentWeekIdx;
+        var t=document.createElement('th');
+        t.style.cssText='width:56px;text-align:center;font-size:10px;'+(isCurr?'background:rgba(24,95,165,0.07);border-top:2px solid var(--blue);':'');
+        if(isCurr){ t.innerHTML='<span style="font-weight:600;color:var(--blue)">'+w+'</span><span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>'; }
+        else { t.textContent=w; }
+        hr.appendChild(t);
+      });
+      th('', 'width:28px;');
+      thead.appendChild(hr); tbl.appendChild(thead);
+
+      var tbody=document.createElement('tbody');
+      rock.kpis.forEach(function(kpi, ki){
+        if(!kpi.weeks||kpi.weeks.length!==12) kpi.weeks=Array(12).fill('');
+        var tr=document.createElement('tr');
+
+        // KPI name
+        var tdName=document.createElement('td');
+        tdName.style.cssText='position:sticky;left:0;background:var(--surf);';
+        var nameEl=document.createElement('div'); nameEl.className='ed'; nameEl.contentEditable='true';
+        nameEl.style.cssText='font-weight:500;font-size:12px;word-break:break-word;';
+        nameEl.textContent=kpi.name||'';
+        nameEl.addEventListener('blur',function(){ kpi.name=this.textContent.trim(); save(); });
+        tdName.appendChild(nameEl); tr.appendChild(tdName);
+
+        // Sub-rock association
+        var tdSub=document.createElement('td');
+        var subSel=document.createElement('select'); subSel.className='ms-sel';
+        var emptyOpt=document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='— none —'; subSel.appendChild(emptyOpt);
+        subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>22?s.title.substr(0,22)+'…':s.title; if(kpi.subId===s.id) o.selected=true; subSel.appendChild(o); });
+        subSel.addEventListener('change',function(){ kpi.subId=this.value; save(); });
+        tdSub.appendChild(subSel); tr.appendChild(tdSub);
+
+        // Target
+        var tdTgt=document.createElement('td');
+        var tgtEl=document.createElement('div'); tgtEl.className='ed'; tgtEl.contentEditable='true';
+        tgtEl.style.cssText='font-size:11px;color:var(--tx2);text-align:center;';
+        tgtEl.textContent=kpi.target||'';
+        tgtEl.title='Set a target (e.g. 95%, $10k, <1min)';
+        tgtEl.addEventListener('blur',function(){ kpi.target=this.textContent.trim(); save(); });
+        tdTgt.appendChild(tgtEl); tr.appendChild(tdTgt);
+
+        // Type (Leading/Lagging)
+        var tdType=document.createElement('td');
+        var typeSel=document.createElement('select'); typeSel.className='ms-sel';
+        ['LEADING','LAGGING'].forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if((kpi.type||'LAGGING')===t) o.selected=true; typeSel.appendChild(o); });
+        typeSel.addEventListener('change',function(){ kpi.type=this.value; save(); });
+        tdType.appendChild(typeSel); tr.appendChild(tdType);
+
+        // Week input cells
+        WEEK_DATES.forEach(function(w, wi){
+          var isCurr = wi===currentWeekIdx;
+          var td=document.createElement('td');
+          td.style.cssText='text-align:center;padding:3px 2px;'+(isCurr?'background:rgba(24,95,165,0.07);':'');
+          var inp=document.createElement('input'); inp.type='text';
+          inp.style.cssText='width:46px;font-size:11px;text-align:center;padding:2px 3px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf);color:var(--tx);font-family:var(--mono);';
+          inp.value=kpi.weeks[wi]||'';
+          inp.placeholder='—';
+          inp.addEventListener('change',function(){ kpi.weeks[wi]=this.value; save(); });
+          inp.addEventListener('focus',function(){ this.style.borderColor='var(--blue)'; this.style.outline='none'; });
+          inp.addEventListener('blur',function(){ this.style.borderColor='var(--bdr)'; });
+          td.appendChild(inp); tr.appendChild(td);
+        });
+
+        // Delete
+        var tdDel=document.createElement('td');
+        var delBtn=document.createElement('button'); delBtn.className='btn-del'; delBtn.innerHTML='&#10005;';
+        delBtn.addEventListener('click',function(){
+          confirmDelete('Delete KPI?','This will permanently delete "'+( kpi.name||'this KPI' )+'".', function(){ rock.kpis.splice(ki,1); save(); renderKPITable(); });
+        });
+        tdDel.appendChild(delBtn); tr.appendChild(tdDel);
+
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody); wrap.appendChild(tbl); container.appendChild(wrap);
+    }
+
+    // Add KPI row
+    var addWrap=document.createElement('div'); addWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 4px;';
+    var nameInp=document.createElement('input'); nameInp.type='text'; nameInp.placeholder='KPI name (e.g. Response time)';
+    nameInp.style.cssText='flex:1;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    var tgtInp=document.createElement('input'); tgtInp.type='text'; tgtInp.placeholder='Target (e.g. <1min)';
+    tgtInp.style.cssText='width:120px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    var typeSel2=document.createElement('select');
+    typeSel2.style.cssText='font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    ['LEADING','LAGGING'].forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; typeSel2.appendChild(o); });
+    var subSel2=document.createElement('select');
+    subSel2.style.cssText='width:150px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    var emptyOpt2=document.createElement('option'); emptyOpt2.value=''; emptyOpt2.textContent='Link sub-rock…'; subSel2.appendChild(emptyOpt2);
+    subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>22?s.title.substr(0,22)+'…':s.title; subSel2.appendChild(o); });
+    var addBtn=document.createElement('button'); addBtn.className='btn btn-ghost'; addBtn.style.cssText='font-size:11px;white-space:nowrap;flex-shrink:0;'; addBtn.textContent='+ Add KPI';
+    addBtn.addEventListener('click',function(){
+      if(!nameInp.value.trim()) return;
+      rock.kpis.push({id:uid(), name:nameInp.value.trim(), target:tgtInp.value.trim(), type:typeSel2.value, subId:subSel2.value, weeks:Array(12).fill('')});
+      save(); renderKPITable();
+    });
+    nameInp.addEventListener('keydown',function(e){ if(e.key==='Enter') addBtn.click(); });
+    addWrap.appendChild(nameInp); addWrap.appendChild(tgtInp); addWrap.appendChild(typeSel2); addWrap.appendChild(subSel2); addWrap.appendChild(addBtn);
+    container.appendChild(addWrap);
+
+    var note=document.createElement('div'); note.className='grade-note'; note.style.marginTop='8px';
+    note.textContent='Enter weekly actuals in each cell. Link each KPI to a sub-rock to show context. Target is for reference only.';
+    container.appendChild(note);
+  }
+
+  renderKPITable();
+}
+
 // ── Add Rock form ──────────────────────────────────────────────────────────
 function showAddRock(type) {
   var el=document.getElementById(type+'-add'); if(!el) return;
@@ -1278,7 +1443,7 @@ function showAddRock(type) {
   var addBtn=document.createElement('button'); addBtn.className='btn btn-primary'; addBtn.textContent='Add Rock';
   addBtn.addEventListener('click',function(){
     if(!tInp.value.trim()) return;
-    getRocks(type).push({id:uid(),title:tInp.value.trim(),dim:'',owner:oInp.value.trim(),dept:'',subrocks:[]});
+    getRocks(type).push({id:uid(),title:tInp.value.trim(),dim:'',owner:oInp.value.trim(),dept:'',subrocks:[],kpis:[]});
     save(); el.style.display='none'; renderAllRocks(); renderDashInd(); 
   });
   actions.appendChild(cancelBtn); actions.appendChild(addBtn);
@@ -1306,7 +1471,7 @@ function showAddRockAR() {
   var addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = 'Add Rock';
   addBtn.addEventListener('click', function() {
     if (!tInp.value.trim()) return;
-    D.rocks.push({ id: uid(), title: tInp.value.trim(), dim: '', owner: oInp.value.trim(), dept: '', subrocks: [] });
+    D.rocks.push({ id: uid(), title: tInp.value.trim(), dim: '', owner: oInp.value.trim(), dept: '', subrocks: [], kpis: [] });
     save(); el.style.display = 'none'; renderAllRocks(); renderDashInd();
   });
   // Allow Enter key to submit
