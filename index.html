@@ -195,7 +195,8 @@ textarea.fc{resize:vertical;min-height:54px}
 <body>
 <!-- Auth screen -->
 <div id="auth-screen">
-  <div class="auth-card">
+  <!-- Sign in form -->
+  <div class="auth-card" id="auth-card-signin">
     <div class="auth-logo">Cedar Brands</div>
     <div class="auth-sub">Quarterly Rocks Workbook — sign in to continue</div>
     <label class="auth-label" for="auth-email">Email</label>
@@ -203,7 +204,36 @@ textarea.fc{resize:vertical;min-height:54px}
     <label class="auth-label" for="auth-pass">Password</label>
     <input class="auth-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
     <button class="auth-btn" id="auth-submit">Sign in</button>
+    <div style="text-align:center;margin-top:14px">
+      <button onclick="showForgotPassword()" style="background:none;border:none;color:#1558A0;font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">Forgot password?</button>
+    </div>
     <div class="auth-err" id="auth-err"></div>
+  </div>
+
+  <!-- Forgot password form -->
+  <div class="auth-card" id="auth-card-forgot" style="display:none">
+    <div class="auth-logo">Reset password</div>
+    <div class="auth-sub">Enter your email and we'll send you a reset link</div>
+    <label class="auth-label" for="auth-reset-email">Email</label>
+    <input class="auth-input" id="auth-reset-email" type="email" placeholder="you@cedarbrands.com" autocomplete="email"/>
+    <button class="auth-btn" id="auth-reset-submit">Send reset link</button>
+    <div style="text-align:center;margin-top:14px">
+      <button onclick="showSignIn()" style="background:none;border:none;color:#1558A0;font-size:12px;cursor:pointer;font-family:var(--font);text-decoration:underline;">Back to sign in</button>
+    </div>
+    <div class="auth-err" id="auth-reset-err"></div>
+    <div id="auth-reset-ok" style="display:none;font-size:12px;color:#2D5E0A;background:#D6EDBC;border-radius:6px;padding:8px 10px;margin-top:12px;text-align:center;">Reset link sent — check your email</div>
+  </div>
+
+  <!-- Set new password form (shown after clicking reset link) -->
+  <div class="auth-card" id="auth-card-newpass" style="display:none">
+    <div class="auth-logo">Set new password</div>
+    <div class="auth-sub">Choose a new password for your account</div>
+    <label class="auth-label" for="auth-newpass">New password</label>
+    <input class="auth-input" id="auth-newpass" type="password" placeholder="••••••••" autocomplete="new-password"/>
+    <label class="auth-label" for="auth-newpass2">Confirm password</label>
+    <input class="auth-input" id="auth-newpass2" type="password" placeholder="••••••••" autocomplete="new-password"/>
+    <button class="auth-btn" id="auth-newpass-submit">Set password</button>
+    <div class="auth-err" id="auth-newpass-err"></div>
   </div>
 </div>
 
@@ -524,7 +554,108 @@ function authSignOut() {
   document.getElementById('sb-user-email').textContent = '';
 }
 
+function showSignIn() {
+  document.getElementById('auth-card-signin').style.display='';
+  document.getElementById('auth-card-forgot').style.display='none';
+  document.getElementById('auth-card-newpass').style.display='none';
+}
+
+function showForgotPassword() {
+  document.getElementById('auth-card-signin').style.display='none';
+  document.getElementById('auth-card-forgot').style.display='';
+  document.getElementById('auth-card-newpass').style.display='none';
+  document.getElementById('auth-reset-err').style.display='none';
+  document.getElementById('auth-reset-ok').style.display='none';
+}
+
+function authSendReset(email) {
+  var btn = document.getElementById('auth-reset-submit');
+  var err = document.getElementById('auth-reset-err');
+  var ok  = document.getElementById('auth-reset-ok');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  err.style.display = 'none'; ok.style.display = 'none';
+
+  fetch(SB_URL + '/auth/v1/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+    body: JSON.stringify({ email: email })
+  })
+  .then(function(r) { return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = 'Send reset link';
+    if(!res.ok && res.data.error) {
+      err.textContent = res.data.error_description || res.data.message || 'Could not send reset email';
+      err.style.display = 'block'; return;
+    }
+    ok.style.display = 'block';
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Send reset link';
+    err.textContent = 'Network error — please try again'; err.style.display = 'block';
+  });
+}
+
+function authSetNewPassword(newPass) {
+  var btn = document.getElementById('auth-newpass-submit');
+  var err = document.getElementById('auth-newpass-err');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  err.style.display = 'none';
+
+  fetch(SB_URL + '/auth/v1/user', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + authToken()
+    },
+    body: JSON.stringify({ password: newPass })
+  })
+  .then(function(r) { return r.json().then(function(d){ return {ok:r.ok,data:d}; }); })
+  .then(function(res) {
+    btn.disabled = false; btn.textContent = 'Set password';
+    if(!res.ok) {
+      err.textContent = res.data.message || 'Could not update password'; err.style.display='block'; return;
+    }
+    // Password set — hide auth screen and load app
+    document.getElementById('auth-screen').classList.add('hidden');
+    // Clear the hash from the URL so refresh doesn't re-trigger
+    history.replaceState(null, '', window.location.pathname);
+    load();
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Set password';
+    err.textContent = 'Network error — please try again'; err.style.display='block';
+  });
+}
+
 function authInit() {
+  // Check for password recovery token in URL hash
+  var hash = window.location.hash;
+  if(hash && hash.indexOf('type=recovery') >= 0) {
+    // Extract access token from hash
+    var match = hash.match(/access_token=([^&]+)/);
+    if(match) {
+      var recoveryToken = match[1];
+      // Create a temporary session with the recovery token
+      authSetSession({ access_token: recoveryToken, user: {} });
+      // Show the set new password form
+      document.getElementById('auth-card-signin').style.display='none';
+      document.getElementById('auth-card-forgot').style.display='none';
+      document.getElementById('auth-card-newpass').style.display='';
+
+      document.getElementById('auth-newpass-submit').addEventListener('click', function() {
+        var p1 = document.getElementById('auth-newpass').value;
+        var p2 = document.getElementById('auth-newpass2').value;
+        var err = document.getElementById('auth-newpass-err');
+        if(p1.length < 6) { err.textContent='Password must be at least 6 characters'; err.style.display='block'; return; }
+        if(p1 !== p2) { err.textContent='Passwords do not match'; err.style.display='block'; return; }
+        authSetNewPassword(p1);
+      });
+      document.getElementById('auth-newpass2').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('auth-newpass-submit').click(); });
+      return;
+    }
+  }
+
   // Wire up login form
   document.getElementById('auth-submit').addEventListener('click', function() {
     var email = document.getElementById('auth-email').value.trim();
@@ -537,6 +668,16 @@ function authInit() {
   });
   document.getElementById('auth-email').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('auth-pass').focus();
+  });
+
+  // Wire up forgot password form
+  document.getElementById('auth-reset-submit').addEventListener('click', function() {
+    var email = document.getElementById('auth-reset-email').value.trim();
+    if(!email) return;
+    authSendReset(email);
+  });
+  document.getElementById('auth-reset-email').addEventListener('keydown', function(e) {
+    if(e.key === 'Enter') document.getElementById('auth-reset-submit').click();
   });
 
   // Check for existing session
