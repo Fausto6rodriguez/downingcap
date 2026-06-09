@@ -103,7 +103,9 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--fon
 .col{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;font-weight:500}
 .sr-idx{font-size:11px;color:var(--tx3);font-family:var(--mono);text-align:center}
 .ed{outline:none;cursor:text;padding:2px 4px;border-radius:4px;font-size:12px;word-break:break-word;}.ed:hover{background:var(--surf2)}.ed:focus{background:var(--surf2);box-shadow:0 0 0 1.5px var(--blue);white-space:normal;overflow:visible}
-.ctrl{font-size:12px;padding:3px 6px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font)}.ctrl:focus{border-color:var(--blue);outline:none}
+.ctrl{font-size:12px;padding:3px 6px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);width:100%;box-sizing:border-box;}.ctrl:focus{border-color:var(--blue);outline:none}
+.ms-table td.tc{text-align:center;vertical-align:middle;}
+.ms-table td.tc .ctrl{text-align:center;}
 .score-inp{width:58px;text-align:center;font-family:var(--mono)}
 .add-sr-row{display:flex;align-items:center;gap:8px;padding:8px 0 2px}
 .add-sr-grid{display:grid;grid-template-columns:1fr 110px 110px 110px 110px;gap:6px;flex:1}
@@ -111,7 +113,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--fon
 .grade-note{font-size:11px;color:var(--tx3);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)}
 .sr-body [contenteditable][data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--tx3);pointer-events:none;}
 .ms-table{width:100%;border-collapse:collapse;font-size:12px;min-width:800px}
-.ms-table th{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--bdr2);font-weight:500;white-space:nowrap;text-align:left}
+.ms-table th{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;padding:6px 6px;border-bottom:1px solid var(--bdr2);font-weight:500;white-space:nowrap;text-align:left}
 .ms-table td{padding:5px 6px;border-bottom:1px solid var(--bdr);vertical-align:top}.ms-table tbody tr:last-child td{border-bottom:none}
 .ms-sel{font-size:11px;padding:2px 4px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf);color:var(--tx);font-family:var(--font);width:100%}.ms-sel:focus{border-color:var(--blue);outline:none}
 .ms-note{width:100%;font-size:11px;padding:2px 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--tx);font-family:var(--font);margin-top:2px}.ms-note:hover{border-color:var(--bdr);background:var(--surf)}.ms-note:focus{border-color:var(--blue);background:var(--surf);outline:none}
@@ -1202,7 +1204,7 @@ function buildSubrocksTab(container,type,rock,ri) {
     DEPARTMENTS.forEach(function(p){ var o=document.createElement('option'); o.value=p; o.textContent=p; if(sub.dept===p) o.selected=true; portcoSel.appendChild(o); });
     portcoSel.addEventListener('change',function(){ sub.dept=this.value; save(); });
 
-    var targetInp=document.createElement('input'); targetInp.type='date'; targetInp.className='ctrl'; targetInp.style.cssText='font-size:11px;width:100%'; targetInp.value=sub.targetDate||'';
+    var targetInp=document.createElement('input'); targetInp.type='date'; targetInp.className='ctrl'; targetInp.style.cssText='font-size:11px;width:100%;text-align:center'; targetInp.value=sub.targetDate||'';
     targetInp.disabled = isRecurring;
     if(isRecurring) targetInp.style.opacity='0.3';
     targetInp.addEventListener('change',function(){
@@ -1210,7 +1212,7 @@ function buildSubrocksTab(container,type,rock,ri) {
       save(); reRender();
     });
 
-    var doneInp=document.createElement('input'); doneInp.type='date'; doneInp.className='ctrl'; doneInp.style.cssText='font-size:11px;width:100%'; doneInp.value=sub.doneDate||'';
+    var doneInp=document.createElement('input'); doneInp.type='date'; doneInp.className='ctrl'; doneInp.style.cssText='font-size:11px;width:100%;text-align:center'; doneInp.value=sub.doneDate||'';
     doneInp.disabled = isRecurring;
     if(isRecurring) doneInp.style.opacity='0.3';
     doneInp.addEventListener('change',function(){
@@ -1425,7 +1427,7 @@ function buildMilestonesTab(container,type,rock) {
       tdTarget.innerHTML='';
     } else {
       var targetInpMs=document.createElement('input'); targetInpMs.type='date'; targetInpMs.className='ctrl';
-      targetInpMs.style.cssText='font-size:11px;width:100%;';
+      targetInpMs.style.cssText='font-size:11px;width:100%;text-align:center;';
       targetInpMs.value=sub.targetDate||'';
       targetInpMs.addEventListener('change',function(){ sub.targetDate=this.value; save(); reRenderTab(rock.id); });
       tdTarget.appendChild(targetInpMs);
@@ -2120,7 +2122,7 @@ function renderDashPortco() {
           tdSt.appendChild(stSel); tr.appendChild(tdSt);
 
           // Conclusion
-          var tdDone=document.createElement('td'); tdDone.style.cssText='text-align:center;vertical-align:middle;'+bts();
+          var tdDone=document.createElement('td'); tdDone.className='tc'; tdDone.style.cssText='vertical-align:middle;'+bts();
           var dInp=document.createElement('input'); dInp.type='date'; dInp.className='ctrl'; dInp.style.cssText='font-size:11px;width:100%;'; dInp.value=sub.doneDate||'';
           dInp.addEventListener('change',function(){ sub.doneDate=this.value; if(this.value) sub.status='Done'; save(); renderDashPortco(); renderAllRocks(); });
           tdDone.appendChild(dInp); tr.appendChild(tdDone);
@@ -2394,8 +2396,8 @@ function buildPersonMilestoneView(name, items) {
         tdDelR.appendChild(delBtnR); tr.appendChild(tdDelR);
       } else {
         // Target date
-        var tdTarget=document.createElement('td'); tdTarget.style.cssText='text-align:center;vertical-align:middle;'+borderTopStyle();
-        var targetInp=document.createElement('input'); targetInp.type='date'; targetInp.className='ctrl'; targetInp.style.cssText='font-size:11px;width:100%;min-width:80px;'; targetInp.value=sub.targetDate||'';
+        var tdTarget=document.createElement('td'); tdTarget.className='tc'; tdTarget.style.cssText='vertical-align:middle;'+borderTopStyle();
+        var targetInp=document.createElement('input'); targetInp.type='date'; targetInp.className='ctrl'; targetInp.style.cssText='font-size:11px;width:100%;min-width:80px;text-align:center;'; targetInp.value=sub.targetDate||'';
         targetInp.addEventListener('change',function(){ sub.targetDate=this.value; save(); renderDashInd(); renderAllRocks(); });
         tdTarget.appendChild(targetInp); tr.appendChild(tdTarget);
 
@@ -2408,8 +2410,8 @@ function buildPersonMilestoneView(name, items) {
         tdStatus.appendChild(stSel); tr.appendChild(tdStatus);
 
         // Conclusion date
-        var tdDone=document.createElement('td'); tdDone.style.cssText='text-align:center;vertical-align:middle;'+borderTopStyle();
-        var doneInp=document.createElement('input'); doneInp.type='date'; doneInp.className='ctrl'; doneInp.style.cssText='font-size:11px;width:100%;min-width:80px;'; doneInp.value=sub.doneDate||'';
+        var tdDone=document.createElement('td'); tdDone.className='tc'; tdDone.style.cssText='vertical-align:middle;'+borderTopStyle();
+        var doneInp=document.createElement('input'); doneInp.type='date'; doneInp.className='ctrl'; doneInp.style.cssText='font-size:11px;width:100%;min-width:80px;text-align:center;'; doneInp.value=sub.doneDate||'';
         doneInp.addEventListener('change',function(){ sub.doneDate=this.value; if(this.value) sub.status='Done'; save(); renderDashInd(); renderAllRocks(); });
         tdDone.appendChild(doneInp); tr.appendChild(tdDone);
 
