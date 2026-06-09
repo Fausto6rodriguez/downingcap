@@ -868,10 +868,10 @@ function renderNS() {
     } else if(isPrev && hasPastToHide) {
       // Arrow to expand/collapse past — sits above the prev week label
       var arrow = NS_COLLAPSE_PAST ? '◀' : '◁';
-      t.innerHTML = '<button onclick="NS_COLLAPSE_PAST=!NS_COLLAPSE_PAST;renderNS();" title="'+(NS_COLLAPSE_PAST?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
+      t.innerHTML = '<button onclick="NS_COLLAPSE_PAST=!NS_COLLAPSE_PAST;if(!NS_COLLAPSE_PAST)NS_COLLAPSE_FUTURE=true;renderNS();" title="'+(NS_COLLAPSE_PAST?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
     } else if(isNext && hasFutureToHide) {
       var arrow2 = NS_COLLAPSE_FUTURE ? '▶' : '▷';
-      t.innerHTML = '<button onclick="NS_COLLAPSE_FUTURE=!NS_COLLAPSE_FUTURE;renderNS();" title="'+(NS_COLLAPSE_FUTURE?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
+      t.innerHTML = '<button onclick="NS_COLLAPSE_FUTURE=!NS_COLLAPSE_FUTURE;if(!NS_COLLAPSE_FUTURE)NS_COLLAPSE_PAST=true;renderNS();" title="'+(NS_COLLAPSE_FUTURE?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
     } else {
       t.textContent = w;
     }
@@ -1018,11 +1018,13 @@ function buildRockCard(type,rock,ri) {
     topStatus='Unplanned';
   } else {
     var statuses=rock.subrocks.map(function(s){return s.status||'Not Started';});
+    var allRecurring=statuses.every(function(s){return s==='Recurring';});
     var hasDone=statuses.indexOf('Done')>=0;
     var hasAtRisk=statuses.indexOf('At Risk')>=0;
     var hasOnTrack=statuses.indexOf('On Track')>=0;
     var allDone=statuses.every(function(s){return s==='Done';});
-    if(allDone) topStatus='Done';
+    if(allRecurring) topStatus='Recurring';
+    else if(allDone) topStatus='Done';
     else if(hasAtRisk) topStatus='At Risk';
     else if(hasOnTrack||hasDone) topStatus='On Track';
     else topStatus='Not Started';
@@ -1146,6 +1148,7 @@ function buildRockCard(type,rock,ri) {
 
     var body=document.createElement('div');
     body.className='sr-body';
+    body.id='tab-body-'+rock.id;
     if(tab==='subrocks') buildSubrocksTab(body,type,rock,ri);
     else if(tab==='milestones') buildMilestonesTab(body,type,rock);
     else if(tab==='kpis') buildKPIsTab(body,type,rock);
@@ -1157,12 +1160,36 @@ function buildRockCard(type,rock,ri) {
 
 function buildSubrocksTab(container,type,rock,ri) {
   var isMobile = window.innerWidth <= 768;
-  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '24px 1fr 100px 110px 64px 130px 130px 110px 32px';
+  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '24px 1fr 100px 110px 64px 130px 110px 130px 32px';
+
   var hdr=document.createElement('div');
   hdr.className='sr-hdr'; hdr.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;';
-  hdr.innerHTML = isMobile
-    ? '<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Dept</span><span class="col">Status</span><span class="col"></span>'
-    : '<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Owner</span><span class="col">Department</span><span class="col">Recurring</span><span class="col">Target Date</span><span class="col">Conclusion Date</span><span class="col">Status</span><span class="col"></span>';
+
+  function makeHdrCell(label, tooltip) {
+    var span=document.createElement('span'); span.className='col';
+    span.style.cssText='text-align:center;position:relative;cursor:default;';
+    span.textContent=label;
+    if(tooltip){
+      span.title=tooltip;
+      span.style.borderBottom='1px dashed var(--bdr2)';
+      span.style.display='inline-block';
+    }
+    return span;
+  }
+
+  if(isMobile){
+    hdr.innerHTML='<span class="col"></span><span class="col">Sub-Rock</span><span class="col">Dept</span><span class="col">Status</span><span class="col"></span>';
+  } else {
+    hdr.appendChild(document.createElement('span'));
+    var subCol=document.createElement('span'); subCol.className='col'; subCol.textContent='Sub-Rock'; hdr.appendChild(subCol);
+    var ownerCol=document.createElement('span'); ownerCol.className='col'; ownerCol.textContent='Owner'; hdr.appendChild(ownerCol);
+    var deptCol=document.createElement('span'); deptCol.className='col'; deptCol.textContent='Department'; hdr.appendChild(deptCol);
+    var recCol=document.createElement('span'); recCol.className='col'; recCol.style.textAlign='center'; recCol.textContent='Recurring'; hdr.appendChild(recCol);
+    hdr.appendChild(makeHdrCell('Target Date','Date one expects the sub-rock to be completed'));
+    hdr.appendChild(makeHdrCell('Status','Update completion status weekly'));
+    hdr.appendChild(makeHdrCell('Conclusion Date','Date the sub-rock was actually completed'));
+    hdr.appendChild(document.createElement('span'));
+  }
   container.appendChild(hdr);
 
   var sortedSubrocks = sortSubrocksByStatus(rock.subrocks);
@@ -1257,7 +1284,7 @@ function buildSubrocksTab(container,type,rock,ri) {
       row.appendChild(idx); row.appendChild(info); row.appendChild(portcoSel); row.appendChild(stSel); row.appendChild(delBtn);
     } else {
       row.appendChild(idx); row.appendChild(info); row.appendChild(ownerEl);
-      row.appendChild(portcoSel); row.appendChild(recWrap); row.appendChild(targetInp); row.appendChild(doneInp); row.appendChild(stSel); row.appendChild(delBtn);
+      row.appendChild(portcoSel); row.appendChild(recWrap); row.appendChild(targetInp); row.appendChild(stSel); row.appendChild(doneInp); row.appendChild(delBtn);
     }
     container.appendChild(row);
   });
@@ -1364,10 +1391,10 @@ function buildMilestonesTab(container,type,rock) {
       th.innerHTML='<span style="display:block;font-weight:600;color:var(--blue)">'+w+'</span><span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>';
     } else if(isPrev && hasPastToHide){
       var arr=rock._msCollapsePast?'◀':'◁';
-      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapsePast=!r._msCollapsePast;save();reRender();}})()" title="'+(rock._msCollapsePast?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr+'</button><span>'+w+'</span>';
+      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapsePast=!r._msCollapsePast;if(!r._msCollapsePast)r._msCollapseFuture=true;save();reRenderTab(r.id);}})()" title="'+(rock._msCollapsePast?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr+'</button><span>'+w+'</span>';
     } else if(isNext && hasFutureToHide){
       var arr2=rock._msCollapseFuture?'▶':'▷';
-      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapseFuture=!r._msCollapseFuture;save();reRender();}})()" title="'+(rock._msCollapseFuture?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr2+'</button><span>'+w+'</span>';
+      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapseFuture=!r._msCollapseFuture;if(!r._msCollapseFuture)r._msCollapsePast=true;save();reRenderTab(r.id);}})()" title="'+(rock._msCollapseFuture?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr2+'</button><span>'+w+'</span>';
     } else {
       th.textContent=w;
     }
@@ -1502,6 +1529,18 @@ function buildMilestonesTab(container,type,rock) {
 
 function rockById(id){ return D.rocks.find(function(r){ return r.id===id; })||null; }
 
+function reRenderTab(rockId) {
+  var rock = rockById(rockId);
+  if(!rock) return;
+  var body = document.getElementById('tab-body-'+rockId);
+  if(!body) return;
+  var tab = D.srTab[rockId] || 'subrocks';
+  body.innerHTML = '';
+  if(tab==='subrocks') buildSubrocksTab(body,'allrocks',rock,0);
+  else if(tab==='milestones') buildMilestonesTab(body,'allrocks',rock);
+  else if(tab==='kpis') buildKPIsTab(body,'allrocks',rock);
+}
+
 function toggleRock(type,id){ D.expanded[id]=!D.expanded[id]; save(); reRender(); }
 function setSRTab(type,id,tab){ D.srTab[id]=tab; save(); reRender(); }
 function reRender(){ renderAllRocks(); }
@@ -1573,10 +1612,10 @@ function buildKPIsTab(container, type, rock) {
           +'<span style="display:block;font-size:9px;color:#1558A0;opacity:.7">now</span>';
       } else if(isPrev){
         var arrow=rock._kpiCollapsePast?'◀':'◁';
-        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapsePast=!r._kpiCollapsePast;save();reRender();}})()" title="'+(rock._kpiCollapsePast?'Expand past':'Collapse past')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
+        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapsePast=!r._kpiCollapsePast;if(!r._kpiCollapsePast)r._kpiCollapseFuture=true;save();reRenderTab(r.id);}})()" title="'+(rock._kpiCollapsePast?'Expand past':'Collapse past')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
       } else if(isNext){
         var arrow2=rock._kpiCollapseFuture?'▶':'▷';
-        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapseFuture=!r._kpiCollapseFuture;save();reRender();}})()" title="'+(rock._kpiCollapseFuture?'Expand future':'Collapse future')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
+        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapseFuture=!r._kpiCollapseFuture;if(!r._kpiCollapseFuture)r._kpiCollapsePast=true;save();reRenderTab(r.id);}})()" title="'+(rock._kpiCollapseFuture?'Expand future':'Collapse future')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
       } else {
         t.textContent=w;
       }
@@ -2106,9 +2145,27 @@ function buildPersonMilestoneView(name, items) {
   for(var ci=WEEK_DATES.length-1;ci>=0;ci--){ var wd=parseWD(WEEK_DATES[ci]); if(wd&&wd<=today){ currentWeekIdx=ci; break; } }
   if(currentWeekIdx===-1) currentWeekIdx=WEEK_DATES.length-1;
 
-  // Only show current week and future
-  var visibleWeeks=[];
-  for(var wi=currentWeekIdx;wi<WEEK_DATES.length;wi++) visibleWeeks.push(wi);
+  var prevIdx    = currentWeekIdx > 0 ? currentWeekIdx-1 : -1;
+  var nextIdx    = currentWeekIdx < WEEK_DATES.length-1 ? currentWeekIdx+1 : -1;
+  var hasPastToHide   = currentWeekIdx > 1;
+  var hasFutureToHide = currentWeekIdx < WEEK_DATES.length-2;
+
+  var indKey = 'ind_cp_'+name;
+  var indKeyF = 'ind_cf_'+name;
+  if(!D.indCollapsed) D.indCollapsed={};
+  if(D.indCollapsed[indKey]===undefined) D.indCollapsed[indKey]=true;
+  if(D.indCollapsed[indKeyF]===undefined) D.indCollapsed[indKeyF]=true;
+  var collapsePast   = D.indCollapsed[indKey];
+  var collapseFuture = D.indCollapsed[indKeyF];
+
+  function isVisibleWk(wi){
+    if(wi===currentWeekIdx) return true;
+    if(wi===prevIdx) return true;
+    if(wi===nextIdx) return true;
+    if(wi<currentWeekIdx && !collapsePast)   return true;
+    if(wi>currentWeekIdx && !collapseFuture) return true;
+    return false;
+  }
 
   var ot=items.filter(function(i){return i.sub.status==='On Track';}).length;
   var ar=items.filter(function(i){return i.sub.status==='At Risk';}).length;
@@ -2181,11 +2238,27 @@ function buildPersonMilestoneView(name, items) {
   ].forEach(function(p){
     var th=document.createElement('th'); th.style.cssText=p[1]; th.textContent=p[0]; hr.appendChild(th);
   });
-  visibleWeeks.forEach(function(wi){
-    var w=WEEK_DATES[wi];
-    var th=document.createElement('th'); var isCurr=wi===currentWeekIdx;
-    th.style.cssText='width:48px;text-align:center;font-size:10px;'+(isCurr?'background:rgba(21,88,160,0.08);border-top:2px solid #1558A0;':'');
-    th.innerHTML=isCurr?'<span style="font-weight:700;color:#1558A0">'+w+'</span><span style="display:block;font-size:9px;color:#1558A0;opacity:.7">now</span>':w;
+  WEEK_DATES.forEach(function(w,wi){
+    if(!isVisibleWk(wi)) return;
+    var isCurr=wi===currentWeekIdx;
+    var isPrev=wi===prevIdx;
+    var isNext=wi===nextIdx;
+    var isPast=wi<currentWeekIdx;
+    var th=document.createElement('th');
+    th.style.cssText='width:48px;text-align:center;font-size:10px;'
+      +(isCurr?'background:rgba(21,88,160,0.08);border-top:2px solid #1558A0;':'')
+      +(isPast?'opacity:0.6;':'');
+    if(isCurr){
+      th.innerHTML='<span style="font-weight:700;color:#1558A0">'+w+'</span><span style="display:block;font-size:9px;color:#1558A0;opacity:.7">now</span>';
+    } else if(isPrev && hasPastToHide){
+      var arr=collapsePast?'◀':'◁';
+      th.innerHTML='<button onclick="(function(){if(!D.indCollapsed)D.indCollapsed={};D.indCollapsed[\'ind_cp_'+name+'\']=!D.indCollapsed[\'ind_cp_'+name+'\'];if(!D.indCollapsed[\'ind_cp_'+name+'\'])D.indCollapsed[\'ind_cf_'+name+'\']=true;save();renderDashInd();})()" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:#1558A0;font-size:12px;line-height:1;padding:0" title="'+(collapsePast?'Show past':'Hide past')+'">'+arr+'</button><span>'+w+'</span>';
+    } else if(isNext && hasFutureToHide){
+      var arr2=collapseFuture?'▶':'▷';
+      th.innerHTML='<button onclick="(function(){if(!D.indCollapsed)D.indCollapsed={};D.indCollapsed[\'ind_cf_'+name+'\']=!D.indCollapsed[\'ind_cf_'+name+'\'];if(!D.indCollapsed[\'ind_cf_'+name+'\'])D.indCollapsed[\'ind_cp_'+name+'\']=true;save();renderDashInd();})()" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:#1558A0;font-size:12px;line-height:1;padding:0" title="'+(collapseFuture?'Show future':'Hide future')+'">'+arr2+'</button><span>'+w+'</span>';
+    } else {
+      th.textContent=w;
+    }
     hr.appendChild(th);
   });
   var thDel=document.createElement('th'); thDel.style.width='28px'; hr.appendChild(thDel);
@@ -2269,15 +2342,16 @@ function buildPersonMilestoneView(name, items) {
 
       // Week dots — visible weeks only
       if(sub.recurring){
-        var tdRec=document.createElement('td'); tdRec.colSpan=visibleWeeks.length;
+        var tdRec=document.createElement('td'); tdRec.colSpan=WEEK_DATES.filter(function(_,wi){return isVisibleWk(wi);}).length;
         tdRec.style.cssText='padding:6px 10px;vertical-align:middle;'+borderTopStyle();
         tdRec.innerHTML='<div style="background:#E0DCFC;border:1px solid #C4B5FD;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:600;color:#332E88;text-align:center;">↻ Recurring Task</div>';
         tr.appendChild(tdRec);
       } else {
-        visibleWeeks.forEach(function(wi){
-          var w=WEEK_DATES[wi];
+        WEEK_DATES.forEach(function(w,wi){
+          if(!isVisibleWk(wi)) return;
           var td=document.createElement('td'); var isCurr=wi===currentWeekIdx;
-          td.style.cssText='text-align:center;padding:6px 3px;'+(isCurr?'background:rgba(21,88,160,0.06);':'')+(rIdx>0&&isFirstOfRock?'border-top:2px solid var(--bdr2);':'');
+          var isPastCol=wi<currentWeekIdx;
+          td.style.cssText='text-align:center;padding:6px 3px;'+(isCurr?'background:rgba(21,88,160,0.06);':'')+(isPastCol?'opacity:0.6;':'')+(rIdx>0&&isFirstOfRock?'border-top:2px solid var(--bdr2);':'');
           var isTarget=wi===targetIdx; var isDone=wi===doneIdx; var isPast=doneIdx>=0&&wi<doneIdx;
           var dot=document.createElement('button');
           dot.style.cssText='width:16px;height:16px;border-radius:50%;border:none;cursor:pointer;display:inline-block;transition:transform .1s;outline:none;';
