@@ -181,7 +181,7 @@ textarea.fc{resize:vertical;min-height:54px}
   <div class="sb-top">
     <div class="sb-top-text">
       <div class="sb-logo-text">Cedar Brands</div>
-      <div class="sb-q" id="sb-quarter">Q2 2026</div>
+      <div class="sb-q" id="sb-quarter">Q3 2026</div>
     </div>
     <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close menu">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -378,7 +378,7 @@ var DIMS = ['Revenue & Growth','Customer Success','Product & Innovation','Team &
 var DEPARTMENTS = ['All Departments','Marketing','Sales','Technology','Fin & Ops','Office of CEO'];
 var STATUSES = ['Not Started','On Track','At Risk','Done'];
 var MS_OPTS = ['--','Planned','Done','At Risk'];
-var WEEK_DATES = ['03.04','10.04','17.04','24.04','01.05','08.05','15.05','22.05','29.05','05.06','12.06','19.06'];
+var WEEK_DATES = ['07.03','07.10','07.17','07.24','07.31','08.07','08.14','08.21','08.28','09.04','09.11','09.18'];
 var PAGE_META = {
   northstar:  {title:'North Star Metrics',        sub:'Leading and lagging indicators — tracked weekly'},
   allrocks:   {title:'All Rocks',                 sub:'Every rock across all brands & corporate'},
@@ -659,7 +659,8 @@ function toggleFilter(tabKey, filterVal) {
 }
 
 // ── North Star ─────────────────────────────────────────────────────────────
-var NS_COLLAPSE_PAST = true; // default: past weeks hidden
+var NS_COLLAPSE_PAST = true;
+var NS_COLLAPSE_FUTURE = true;
 
 function renderNS() {
   var tbl=document.getElementById('ns-table'); if(!tbl) return;
@@ -667,7 +668,7 @@ function renderNS() {
 
   // Current week index (same logic as milestones)
   var today=new Date(); today.setHours(0,0,0,0);
-  function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[1],10)-1,parseInt(p[0],10)); }
+  function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[0],10)-1,parseInt(p[1],10)); }
   var currentWeekIdx=-1;
   for(var ci=0;ci<WEEK_DATES.length;ci++){ var wd=parseWD(WEEK_DATES[ci]); if(wd&&today<=wd){ currentWeekIdx=ci; break; } }
   if(currentWeekIdx===-1) currentWeekIdx=WEEK_DATES.length-1;
@@ -687,17 +688,40 @@ function renderNS() {
   th('Metric','min-width:150px');
   th('Owner','width:90px');
   th('Q Target','width:72px');
+
+  var prevIdx    = currentWeekIdx > 0 ? currentWeekIdx - 1 : -1;
+  var nextIdx    = currentWeekIdx < WEEK_DATES.length - 1 ? currentWeekIdx + 1 : -1;
+  var hasPastToHide   = currentWeekIdx > 1; // more than 1 week before current
+  var hasFutureToHide = currentWeekIdx < WEEK_DATES.length - 2; // more than 1 week after current
+
   WEEK_DATES.forEach(function(w,wi){
-    var isCurr=wi===currentWeekIdx;
-    var isPast=wi<currentWeekIdx;
-    if(isPast && NS_COLLAPSE_PAST) return;
-    var t=document.createElement('th');
-    t.style.cssText='width:44px;text-align:center;font-size:10px;'+(isCurr?'background:rgba(24,95,165,0.07);border-top:2px solid var(--blue);':'');
-    if(isCurr){
-      var toggleBtn='<button onclick="NS_COLLAPSE_PAST=!NS_COLLAPSE_PAST;renderNS();" title="'+(NS_COLLAPSE_PAST?'Show past weeks':'Hide past weeks')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:14px;line-height:1;padding:0">'+(NS_COLLAPSE_PAST?'«':'»')+'</button>';
-      t.innerHTML=toggleBtn+'<span style="font-weight:600;color:var(--blue)">'+w+'</span><span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>';
+    var isCurr   = wi === currentWeekIdx;
+    var isPrev   = wi === prevIdx;
+    var isNext   = wi === nextIdx;
+    var isPast   = wi < currentWeekIdx;
+    var isFuture = wi > currentWeekIdx;
+
+    // Skip hidden weeks
+    if(isPast && !isPrev && NS_COLLAPSE_PAST) return;
+    if(isFuture && !isNext && NS_COLLAPSE_FUTURE) return;
+
+    var t = document.createElement('th');
+    t.style.cssText = 'width:44px;text-align:center;font-size:10px;'
+      + (isCurr ? 'background:rgba(24,95,165,0.07);border-top:2px solid var(--blue);' : '')
+      + (isPast ? 'opacity:0.6;' : '');
+
+    if(isCurr) {
+      t.innerHTML = '<span style="font-weight:600;color:var(--blue)">'+w+'</span>'
+        + '<span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>';
+    } else if(isPrev && hasPastToHide) {
+      // Arrow to expand/collapse past — sits above the prev week label
+      var arrow = NS_COLLAPSE_PAST ? '◀' : '◁';
+      t.innerHTML = '<button onclick="NS_COLLAPSE_PAST=!NS_COLLAPSE_PAST;renderNS();" title="'+(NS_COLLAPSE_PAST?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
+    } else if(isNext && hasFutureToHide) {
+      var arrow2 = NS_COLLAPSE_FUTURE ? '▶' : '▷';
+      t.innerHTML = '<button onclick="NS_COLLAPSE_FUTURE=!NS_COLLAPSE_FUTURE;renderNS();" title="'+(NS_COLLAPSE_FUTURE?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
     } else {
-      t.textContent=w;
+      t.textContent = w;
     }
     hr.appendChild(t);
   });
@@ -757,11 +781,15 @@ function renderNS() {
 
     // Week inputs
     m.weeks.forEach(function(w,wi){
-      var isCurr=wi===currentWeekIdx;
-      var isPast=wi<currentWeekIdx;
-      if(isPast && NS_COLLAPSE_PAST) return;
+      var isCurr   = wi === currentWeekIdx;
+      var isPrev   = wi === prevIdx;
+      var isNext   = wi === nextIdx;
+      var isPast   = wi < currentWeekIdx;
+      var isFuture = wi > currentWeekIdx;
+      if(isPast   && !isPrev && NS_COLLAPSE_PAST)   return;
+      if(isFuture && !isNext && NS_COLLAPSE_FUTURE) return;
       var td=document.createElement('td');
-      td.style.cssText=isCurr?'background:rgba(24,95,165,0.07);':'';
+      td.style.cssText=(isCurr?'background:rgba(24,95,165,0.07);':'')+(isPast?'opacity:0.6;':'');
       var inp=document.createElement('input'); inp.type='number'; inp.className='ns-wk';
       inp.style.cssText='-moz-appearance:textfield;';
       inp.value=w||'';
@@ -1109,32 +1137,55 @@ function buildMilestonesTab(container,type,rock) {
     container.appendChild(empty); return;
   }
 
-  // Helper: parse DD.MM date string to a Date object (Q2 2026)
+  // MM.DD parse
   function parseWeekDate(str) {
     if(!str) return null;
     var parts=str.split('.');
     if(parts.length!==2) return null;
-    return new Date(2026, parseInt(parts[1],10)-1, parseInt(parts[0],10));
+    return new Date(2026, parseInt(parts[0],10)-1, parseInt(parts[1],10));
   }
 
-  // Helper: parse YYYY-MM-DD (from date input) to Date
   function parseISODate(str) {
     if(!str) return null;
     var d=new Date(str);
     return isNaN(d.getTime())?null:d;
   }
 
-  // For a given date, find which week index (0-11) it falls in (or closest)
   function dateToWeekIdx(d) {
     if(!d) return -1;
     for(var i=0;i<WEEK_DATES.length;i++){
       var wd=parseWeekDate(WEEK_DATES[i]);
       if(!wd) continue;
-      // Week i covers from previous week+1 day to this week's end date
-      var prevEnd=i===0?new Date(2026,2,26):parseWeekDate(WEEK_DATES[i-1]);
       if(d<=wd) return i;
     }
     return WEEK_DATES.length-1;
+  }
+
+  var today=new Date(); today.setHours(0,0,0,0);
+  var currentWeekIdx=-1;
+  for(var ci=0;ci<WEEK_DATES.length;ci++){
+    var wd=parseWeekDate(WEEK_DATES[ci]);
+    if(wd && today<=wd){ currentWeekIdx=ci; break; }
+  }
+  if(currentWeekIdx===-1) currentWeekIdx=WEEK_DATES.length-1;
+
+  var prevIdx    = currentWeekIdx > 0 ? currentWeekIdx - 1 : -1;
+  var nextIdx    = currentWeekIdx < WEEK_DATES.length-1 ? currentWeekIdx + 1 : -1;
+  var hasPastToHide   = currentWeekIdx > 1;
+  var hasFutureToHide = currentWeekIdx < WEEK_DATES.length - 2;
+
+  if(!rock._msCollapsePast)   rock._msCollapsePast   = true;
+  if(!rock._msCollapseFuture) rock._msCollapseFuture = true;
+  if(rock._msCollapsePast   === undefined) rock._msCollapsePast   = true;
+  if(rock._msCollapseFuture === undefined) rock._msCollapseFuture = true;
+
+  function isVisible(wi) {
+    if(wi === currentWeekIdx) return true;
+    if(wi === prevIdx) return true;
+    if(wi === nextIdx) return true;
+    if(wi < currentWeekIdx && !rock._msCollapsePast)   return true;
+    if(wi > currentWeekIdx && !rock._msCollapseFuture) return true;
+    return false;
   }
 
   var wrap=document.createElement('div'); wrap.className='ms-wrap';
@@ -1146,22 +1197,25 @@ function buildMilestonesTab(container,type,rock) {
   var th0=document.createElement('th'); th0.style.cssText='min-width:160px;max-width:180px;position:sticky;left:0;background:var(--surf);word-break:break-word;'; th0.textContent='Sub-Rock'; hr.appendChild(th0);
   var th1=document.createElement('th'); th1.style.cssText='width:90px'; th1.textContent='Owner'; hr.appendChild(th1);
   var th2=document.createElement('th'); th2.style.cssText='width:90px'; th2.textContent='Target'; hr.appendChild(th2);
-  // Determine current week index based on today's date
-  var today=new Date(); today.setHours(0,0,0,0);
-  var currentWeekIdx=-1;
-  for(var ci=0;ci<WEEK_DATES.length;ci++){
-    var wd=parseWeekDate(WEEK_DATES[ci]);
-    if(wd && today<=wd){ currentWeekIdx=ci; break; }
-  }
-  if(currentWeekIdx===-1 && today>parseWeekDate(WEEK_DATES[WEEK_DATES.length-1])) currentWeekIdx=WEEK_DATES.length-1;
 
   WEEK_DATES.forEach(function(w, wi){
+    if(!isVisible(wi)) return;
+    var isCurr   = wi===currentWeekIdx;
+    var isPrev   = wi===prevIdx;
+    var isNext   = wi===nextIdx;
+    var isPast   = wi<currentWeekIdx;
     var th=document.createElement('th');
-    var isCurrent = wi===currentWeekIdx;
-    th.style.cssText='width:56px;text-align:center;font-size:10px;position:relative;'+(isCurrent?'background:rgba(24,95,165,0.07);':'');
-    if(isCurrent){
-      th.style.borderTop='2px solid var(--blue)';
+    th.style.cssText='width:56px;text-align:center;font-size:10px;position:relative;'
+      +(isCurr?'background:rgba(24,95,165,0.07);border-top:2px solid var(--blue);':'')
+      +(isPast?'opacity:0.6;':'');
+    if(isCurr){
       th.innerHTML='<span style="display:block;font-weight:600;color:var(--blue)">'+w+'</span><span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>';
+    } else if(isPrev && hasPastToHide){
+      var arr=rock._msCollapsePast?'◀':'◁';
+      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapsePast=!r._msCollapsePast;save();reRender();}})()" title="'+(rock._msCollapsePast?'Show past':'Hide past')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr+'</button><span>'+w+'</span>';
+    } else if(isNext && hasFutureToHide){
+      var arr2=rock._msCollapseFuture?'▶':'▷';
+      th.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._msCollapseFuture=!r._msCollapseFuture;save();reRender();}})()" title="'+(rock._msCollapseFuture?'Show future':'Hide future')+'" style="display:block;margin:0 auto 1px;background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;line-height:1;padding:0">'+arr2+'</button><span>'+w+'</span>';
     } else {
       th.textContent=w;
     }
@@ -1221,9 +1275,11 @@ function buildMilestonesTab(container,type,rock) {
 
       // Week dot cells
       WEEK_DATES.forEach(function(w, wi){
+        if(!isVisible(wi)) return;
         var td=document.createElement('td');
         var isCurrWeek = wi===currentWeekIdx;
-        td.style.cssText='text-align:center;padding:6px 4px;vertical-align:middle;'+(isCurrWeek?'background:rgba(24,95,165,0.07);':'');
+        var isPastDot  = wi<currentWeekIdx;
+        td.style.cssText='text-align:center;padding:6px 4px;vertical-align:middle;'+(isCurrWeek?'background:rgba(24,95,165,0.07);':'')+(isPastDot&&!isCurrWeek?'opacity:0.6;':'');
 
         var dot=document.createElement('button');
         dot.style.cssText='width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;display:inline-block;transition:transform .1s;outline:none;';
@@ -1292,6 +1348,8 @@ function buildMilestonesTab(container,type,rock) {
   container.appendChild(legend);
 }
 
+function rockById(id){ return D.rocks.find(function(r){ return r.id===id; })||null; }
+
 function toggleRock(type,id){ D.expanded[id]=!D.expanded[id]; save(); reRender(); }
 function setSRTab(type,id,tab){ D.srTab[id]=tab; save(); reRender(); }
 function reRender(){ renderAllRocks(); }
@@ -1299,144 +1357,200 @@ function reRender(){ renderAllRocks(); }
 // ── KPIs Tab ───────────────────────────────────────────────────────────────
 function buildKPIsTab(container, type, rock) {
   if(!rock.kpis) rock.kpis=[];
+  if(!rock._kpiCollapsePast)   rock._kpiCollapsePast=true;
+  if(!rock._kpiCollapseFuture) rock._kpiCollapseFuture=true;
+  // Note: undefined check so false is preserved
+  if(rock._kpiCollapsePast===undefined)   rock._kpiCollapsePast=true;
+  if(rock._kpiCollapseFuture===undefined) rock._kpiCollapseFuture=true;
 
-  // Parse helpers
-  function parseWeekDate(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[1],10)-1,parseInt(p[0],10)); }
+  function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[0],10)-1,parseInt(p[1],10)); }
   var today=new Date(); today.setHours(0,0,0,0);
   var currentWeekIdx=-1;
-  for(var ci=0;ci<WEEK_DATES.length;ci++){ var wd=parseWeekDate(WEEK_DATES[ci]); if(wd&&today<=wd){ currentWeekIdx=ci; break; } }
+  for(var ci=0;ci<WEEK_DATES.length;ci++){ var wd=parseWD(WEEK_DATES[ci]); if(wd&&today<=wd){ currentWeekIdx=ci; break; } }
   if(currentWeekIdx===-1) currentWeekIdx=WEEK_DATES.length-1;
 
-  // Sub-rock options for association
+  var prevIdx = Math.max(0, currentWeekIdx-1);
+  var nextIdx = Math.min(WEEK_DATES.length-1, currentWeekIdx+1);
+
   var subOptions = rock.subrocks.map(function(s){ return {id:s.id, title:s.title||'(untitled)'}; });
+
+  function isVisible(wi) {
+    var isCurr   = wi===currentWeekIdx;
+    var isPrev   = wi===prevIdx && wi<currentWeekIdx;
+    var isNext   = wi===nextIdx && wi>currentWeekIdx;
+    var isPast   = wi<currentWeekIdx;
+    var isFuture = wi>currentWeekIdx;
+    if(isCurr) return true;
+    if(isPrev) return true;
+    if(isNext) return true;
+    if(isPast   && !rock._kpiCollapsePast)   return true;
+    if(isFuture && !rock._kpiCollapseFuture) return true;
+    return false;
+  }
 
   function renderKPITable() {
     container.innerHTML='';
+    var wrap=document.createElement('div'); wrap.className='ms-wrap';
+    var tbl=document.createElement('table'); tbl.className='ms-table';
+    tbl.style.cssText='border-collapse:collapse;width:100%;';
+
+    // ── Header ────────────────────────────────────────────────────────────
+    var thead=document.createElement('thead');
+    var hr=document.createElement('tr');
+    function th(label,style,isHtml){ var el=document.createElement('th'); el.style.cssText=style||''; if(isHtml) el.innerHTML=label; else el.textContent=label; hr.appendChild(el); return el; }
+
+    th('Type','width:80px');
+    th('KPI','min-width:150px;position:sticky;left:0;background:var(--surf);');
+    th('Sub-Rock','width:110px');
+    th('Q Target','width:72px');
+
+    WEEK_DATES.forEach(function(w,wi){
+      if(!isVisible(wi)) return;
+      var isCurr   = wi===currentWeekIdx;
+      var isPrev   = wi===prevIdx && wi<currentWeekIdx;
+      var isNext   = wi===nextIdx && wi>currentWeekIdx;
+      var isPast   = wi<currentWeekIdx;
+
+      var t=document.createElement('th');
+      t.style.cssText='width:44px;text-align:center;font-size:10px;'
+        +(isCurr?'background:rgba(24,95,165,0.07);border-top:2px solid #1558A0;':'')
+        +(isPast&&!isCurr?'opacity:0.55;':'');
+
+      if(isCurr){
+        t.innerHTML='<span style="font-weight:600;color:#1558A0">'+w+'</span>'
+          +'<span style="display:block;font-size:9px;color:#1558A0;opacity:.7">now</span>';
+      } else if(isPrev){
+        var arrow=rock._kpiCollapsePast?'◀':'◁';
+        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapsePast=!r._kpiCollapsePast;save();reRender();}})()" title="'+(rock._kpiCollapsePast?'Expand past':'Collapse past')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow+'</button><span>'+w+'</span>';
+      } else if(isNext){
+        var arrow2=rock._kpiCollapseFuture?'▶':'▷';
+        t.innerHTML='<button onclick="(function(){var r=rockById(\''+rock.id+'\');if(r){r._kpiCollapseFuture=!r._kpiCollapseFuture;save();reRender();}})()" title="'+(rock._kpiCollapseFuture?'Expand future':'Collapse future')+'" style="display:block;margin:0 auto 2px;background:none;border:none;cursor:pointer;color:var(--tx3);font-size:11px;line-height:1;padding:0">'+arrow2+'</button><span>'+w+'</span>';
+      } else {
+        t.textContent=w;
+      }
+      hr.appendChild(t);
+    });
+
+    th('Total','width:60px');
+    th('vs Tgt','width:62px');
+    th('','width:28px');
+    thead.appendChild(hr); tbl.appendChild(thead);
+
+    // ── Body ──────────────────────────────────────────────────────────────
+    var tbody=document.createElement('tbody');
 
     if(!rock.kpis.length){
-      var empty=document.createElement('div'); empty.className='empty'; empty.style.padding='20px';
-      empty.textContent='No KPIs yet — add one below';
-      container.appendChild(empty);
-    } else {
-      var wrap=document.createElement('div'); wrap.className='ms-wrap';
-      var tbl=document.createElement('table'); tbl.className='ms-table';
-
-      // Header
-      var thead=document.createElement('thead'); var hr=document.createElement('tr');
-      function th(txt, style){ var el=document.createElement('th'); el.style.cssText=style||''; el.textContent=txt; hr.appendChild(el); }
-      th('KPI', 'min-width:140px;position:sticky;left:0;background:var(--surf);');
-      th('Sub-Rock', 'width:130px;');
-      th('Target', 'width:72px;');
-      th('Type', 'width:72px;');
-      WEEK_DATES.forEach(function(w, wi){
-        var isCurr = wi===currentWeekIdx;
-        var t=document.createElement('th');
-        t.style.cssText='width:56px;text-align:center;font-size:10px;'+(isCurr?'background:rgba(24,95,165,0.07);border-top:2px solid var(--blue);':'');
-        if(isCurr){ t.innerHTML='<span style="font-weight:600;color:var(--blue)">'+w+'</span><span style="display:block;font-size:9px;color:var(--blue);opacity:.7">now</span>'; }
-        else { t.textContent=w; }
-        hr.appendChild(t);
-      });
-      th('', 'width:28px;');
-      thead.appendChild(hr); tbl.appendChild(thead);
-
-      var tbody=document.createElement('tbody');
-      rock.kpis.forEach(function(kpi, ki){
-        if(!kpi.weeks||kpi.weeks.length!==12) kpi.weeks=Array(12).fill('');
-        var tr=document.createElement('tr');
-
-        // KPI name
-        var tdName=document.createElement('td');
-        tdName.style.cssText='position:sticky;left:0;background:var(--surf);';
-        var nameEl=document.createElement('div'); nameEl.className='ed'; nameEl.contentEditable='true';
-        nameEl.style.cssText='font-weight:500;font-size:12px;word-break:break-word;';
-        nameEl.textContent=kpi.name||'';
-        nameEl.addEventListener('blur',function(){ kpi.name=this.textContent.trim(); save(); });
-        tdName.appendChild(nameEl); tr.appendChild(tdName);
-
-        // Sub-rock association
-        var tdSub=document.createElement('td');
-        var subSel=document.createElement('select'); subSel.className='ms-sel';
-        var emptyOpt=document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='— none —'; subSel.appendChild(emptyOpt);
-        subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>22?s.title.substr(0,22)+'…':s.title; if(kpi.subId===s.id) o.selected=true; subSel.appendChild(o); });
-        subSel.addEventListener('change',function(){ kpi.subId=this.value; save(); });
-        tdSub.appendChild(subSel); tr.appendChild(tdSub);
-
-        // Target
-        var tdTgt=document.createElement('td');
-        var tgtEl=document.createElement('div'); tgtEl.className='ed'; tgtEl.contentEditable='true';
-        tgtEl.style.cssText='font-size:11px;color:var(--tx2);text-align:center;';
-        tgtEl.textContent=kpi.target||'';
-        tgtEl.title='Set a target (e.g. 95%, $10k, <1min)';
-        tgtEl.addEventListener('blur',function(){ kpi.target=this.textContent.trim(); save(); });
-        tdTgt.appendChild(tgtEl); tr.appendChild(tdTgt);
-
-        // Type (Leading/Lagging)
-        var tdType=document.createElement('td');
-        var typeSel=document.createElement('select'); typeSel.className='ms-sel';
-        ['LEADING','LAGGING'].forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if((kpi.type||'LAGGING')===t) o.selected=true; typeSel.appendChild(o); });
-        typeSel.addEventListener('change',function(){ kpi.type=this.value; save(); });
-        tdType.appendChild(typeSel); tr.appendChild(tdType);
-
-        // Week input cells
-        WEEK_DATES.forEach(function(w, wi){
-          var isCurr = wi===currentWeekIdx;
-          var td=document.createElement('td');
-          td.style.cssText='text-align:center;padding:3px 2px;'+(isCurr?'background:rgba(24,95,165,0.07);':'');
-          var inp=document.createElement('input'); inp.type='text';
-          inp.style.cssText='width:46px;font-size:11px;text-align:center;padding:2px 3px;border:1px solid var(--bdr);border-radius:4px;background:var(--surf);color:var(--tx);font-family:var(--mono);';
-          inp.value=kpi.weeks[wi]||'';
-          inp.placeholder='—';
-          inp.addEventListener('change',function(){ kpi.weeks[wi]=this.value; save(); });
-          inp.addEventListener('focus',function(){ this.style.borderColor='var(--blue)'; this.style.outline='none'; });
-          inp.addEventListener('blur',function(){ this.style.borderColor='var(--bdr)'; });
-          td.appendChild(inp); tr.appendChild(td);
-        });
-
-        // Delete
-        var tdDel=document.createElement('td');
-        var delBtn=document.createElement('button'); delBtn.className='btn-del'; delBtn.innerHTML='&#10005;';
-        delBtn.addEventListener('click',function(){
-          confirmDelete('Delete KPI?','This will permanently delete "'+( kpi.name||'this KPI' )+'".', function(){ rock.kpis.splice(ki,1); save(); renderKPITable(); });
-        });
-        tdDel.appendChild(delBtn); tr.appendChild(tdDel);
-
-        tbody.appendChild(tr);
-      });
-      tbl.appendChild(tbody); wrap.appendChild(tbl); container.appendChild(wrap);
+      var emptyRow=document.createElement('tr');
+      var emptyTd=document.createElement('td'); emptyTd.colSpan=20;
+      emptyTd.style.cssText='padding:16px;color:var(--tx3);font-size:12px;text-align:center;';
+      emptyTd.textContent='No KPIs yet — add one below';
+      emptyRow.appendChild(emptyTd); tbody.appendChild(emptyRow);
     }
 
-    // Add KPI row
-    var addWrap=document.createElement('div'); addWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 4px;';
-    var nameInp=document.createElement('input'); nameInp.type='text'; nameInp.placeholder='KPI name (e.g. Response time)';
-    nameInp.style.cssText='flex:1;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
-    var tgtInp=document.createElement('input'); tgtInp.type='text'; tgtInp.placeholder='Target (e.g. <1min)';
-    tgtInp.style.cssText='width:120px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    rock.kpis.forEach(function(kpi,ki){
+      if(!kpi.weeks||kpi.weeks.length!==12) kpi.weeks=Array(12).fill('');
+      var nums=kpi.weeks.map(function(v){return parseFloat(v)||0;});
+      var total=nums.reduce(function(a,b){return a+b;},0);
+      var tgt=parseFloat(kpi.target)||0;
+      var vs,vc;
+      if(!tgt){ vs='—'; vc=''; }
+      else { var pct=Math.round(total/tgt*100); vs=pct+'%'; vc=total>=tgt?'ns-pos':'ns-neg'; }
+
+      var tr=document.createElement('tr');
+
+      // Type
+      var tdType=document.createElement('td');
+      var typeSel=document.createElement('select'); typeSel.className='ctrl'; typeSel.style.cssText='font-size:11px;width:100%';
+      ['LEADING','LAGGING'].forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; if((kpi.type||'LAGGING')===t) o.selected=true; typeSel.appendChild(o); });
+      typeSel.addEventListener('change',function(){ kpi.type=this.value; save(); });
+      tdType.appendChild(typeSel); tr.appendChild(tdType);
+
+      // KPI name
+      var tdName=document.createElement('td'); tdName.style.cssText='position:sticky;left:0;background:var(--surf);';
+      var nameEl=document.createElement('div'); nameEl.className='ed'; nameEl.contentEditable='true';
+      nameEl.style.cssText='font-size:12px;font-weight:500;word-break:break-word;min-width:120px;';
+      nameEl.textContent=kpi.name||'';
+      nameEl.addEventListener('blur',function(){ kpi.name=this.textContent.trim(); save(); });
+      tdName.appendChild(nameEl); tr.appendChild(tdName);
+
+      // Sub-rock
+      var tdSub=document.createElement('td');
+      var subSel=document.createElement('select'); subSel.className='ctrl'; subSel.style.cssText='font-size:11px;width:100%';
+      var emptyOpt=document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='— none —'; subSel.appendChild(emptyOpt);
+      subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>16?s.title.substr(0,16)+'…':s.title; if(kpi.subId===s.id) o.selected=true; subSel.appendChild(o); });
+      subSel.addEventListener('change',function(){ kpi.subId=this.value; save(); });
+      tdSub.appendChild(subSel); tr.appendChild(tdSub);
+
+      // Q Target
+      var tdTgt=document.createElement('td');
+      var tgtInp=document.createElement('input'); tgtInp.type='number'; tgtInp.className='ns-wk'; tgtInp.style.cssText='width:62px;-moz-appearance:textfield;'; tgtInp.value=kpi.target||''; tgtInp.placeholder='—';
+      tgtInp.addEventListener('change',function(){ kpi.target=this.value; save(); renderKPITable(); });
+      tdTgt.appendChild(tgtInp); tr.appendChild(tdTgt);
+
+      // Week inputs — same visibility logic
+      kpi.weeks.forEach(function(v,wi){
+        if(!isVisible(wi)) return;
+        var isCurr=wi===currentWeekIdx; var isPast=wi<currentWeekIdx;
+        var td=document.createElement('td');
+        td.style.cssText=(isCurr?'background:rgba(21,88,160,0.07);':'')+(isPast&&!isCurr?'opacity:0.55;':'');
+        var inp=document.createElement('input'); inp.type='number'; inp.className='ns-wk';
+        inp.style.cssText='-moz-appearance:textfield;';
+        inp.value=v||'';
+        inp.addEventListener('change',function(){ kpi.weeks[wi]=this.value; save(); renderKPITable(); });
+        td.appendChild(inp); tr.appendChild(td);
+      });
+
+      // Total
+      var tdTotal=document.createElement('td'); tdTotal.style.cssText='font-family:var(--mono);font-weight:500';
+      tdTotal.textContent=total%1===0?total:total.toFixed(1);
+
+      // vs Tgt
+      var tdVs=document.createElement('td'); tdVs.className=vc; tdVs.textContent=vs;
+
+      // Delete
+      var tdDel=document.createElement('td');
+      var delBtn=document.createElement('button'); delBtn.className='btn-del'; delBtn.innerHTML='&#10005;';
+      delBtn.addEventListener('click',function(){
+        confirmDelete('Delete KPI?','This will permanently delete "'+(kpi.name||'this KPI')+'".', function(){ rock.kpis.splice(ki,1); save(); renderKPITable(); });
+      });
+      tdDel.appendChild(delBtn);
+
+      tr.appendChild(tdTotal); tr.appendChild(tdVs); tr.appendChild(tdDel);
+      tbody.appendChild(tr);
+    });
+
+    tbl.appendChild(tbody); wrap.appendChild(tbl); container.appendChild(wrap);
+
+    // ── Add row ───────────────────────────────────────────────────────────
+    var addWrap=document.createElement('div'); addWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 4px;flex-wrap:wrap;';
+    var nameInp=document.createElement('input'); nameInp.type='text'; nameInp.placeholder='KPI name';
+    nameInp.style.cssText='flex:1;min-width:140px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    var tgtInp2=document.createElement('input'); tgtInp2.type='text'; tgtInp2.placeholder='Q Target';
+    tgtInp2.style.cssText='width:90px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
     var typeSel2=document.createElement('select');
     typeSel2.style.cssText='font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
     ['LEADING','LAGGING'].forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; typeSel2.appendChild(o); });
     var subSel2=document.createElement('select');
-    subSel2.style.cssText='width:150px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
+    subSel2.style.cssText='width:130px;font-size:12px;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);font-family:var(--font);';
     var emptyOpt2=document.createElement('option'); emptyOpt2.value=''; emptyOpt2.textContent='Link sub-rock…'; subSel2.appendChild(emptyOpt2);
-    subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>22?s.title.substr(0,22)+'…':s.title; subSel2.appendChild(o); });
+    subOptions.forEach(function(s){ var o=document.createElement('option'); o.value=s.id; o.textContent=s.title.length>20?s.title.substr(0,20)+'…':s.title; subSel2.appendChild(o); });
     var addBtn=document.createElement('button'); addBtn.className='btn btn-ghost'; addBtn.style.cssText='font-size:11px;white-space:nowrap;flex-shrink:0;'; addBtn.textContent='+ Add KPI';
     addBtn.addEventListener('click',function(){
       if(!nameInp.value.trim()) return;
-      rock.kpis.push({id:uid(), name:nameInp.value.trim(), target:tgtInp.value.trim(), type:typeSel2.value, subId:subSel2.value, weeks:Array(12).fill('')});
+      rock.kpis.push({id:uid(),name:nameInp.value.trim(),target:tgtInp2.value.trim(),type:typeSel2.value,subId:subSel2.value,weeks:Array(12).fill('')});
       save(); renderKPITable();
     });
     nameInp.addEventListener('keydown',function(e){ if(e.key==='Enter') addBtn.click(); });
-    addWrap.appendChild(nameInp); addWrap.appendChild(tgtInp); addWrap.appendChild(typeSel2); addWrap.appendChild(subSel2); addWrap.appendChild(addBtn);
+    addWrap.appendChild(nameInp); addWrap.appendChild(tgtInp2); addWrap.appendChild(typeSel2); addWrap.appendChild(subSel2); addWrap.appendChild(addBtn);
     container.appendChild(addWrap);
 
     var note=document.createElement('div'); note.className='grade-note'; note.style.marginTop='8px';
-    note.textContent='Enter weekly actuals in each cell. Link each KPI to a sub-rock to show context. Target is for reference only.';
+    note.textContent='Shows last week, current week, and next week. ◀ expands past · ▶ expands future.';
     container.appendChild(note);
   }
 
   renderKPITable();
 }
-
-// ── Add Rock form ──────────────────────────────────────────────────────────
 function showAddRock(type) {
   var el=document.getElementById(type+'-add'); if(!el) return;
   if(el.style.display!=='none'){ el.style.display='none'; return; }
@@ -1724,7 +1838,7 @@ function renderDashPortco() {
         if(!rockCollapsed){
           // Milestone table
           var today=new Date(); today.setHours(0,0,0,0);
-          function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[1],10)-1,parseInt(p[0],10)); }
+          function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[0],10)-1,parseInt(p[1],10)); }
           function parseISO(str){ if(!str) return null; var d=new Date(str); return isNaN(d.getTime())?null:d; }
           function dateToWkIdx(d){ if(!d) return -1; for(var i=0;i<WEEK_DATES.length;i++){ var wd=parseWD(WEEK_DATES[i]); if(wd&&d<=wd) return i; } return WEEK_DATES.length-1; }
           var currentWeekIdx=-1;
@@ -1832,7 +1946,7 @@ function renderDashCards(el,keys,groups) {
 function buildPersonMilestoneView(name, items) {
   var today=new Date(); today.setHours(0,0,0,0);
 
-  function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[1],10)-1,parseInt(p[0],10)); }
+  function parseWD(str){ if(!str) return null; var p=str.split('.'); if(p.length!==2) return null; return new Date(2026,parseInt(p[0],10)-1,parseInt(p[1],10)); }
   function parseISO(str){ if(!str) return null; var d=new Date(str); return isNaN(d.getTime())?null:d; }
   function dateToWkIdx(d){ if(!d) return -1; for(var i=0;i<WEEK_DATES.length;i++){ var wd=parseWD(WEEK_DATES[i]); if(wd&&d<=wd) return i; } return WEEK_DATES.length-1; }
 
