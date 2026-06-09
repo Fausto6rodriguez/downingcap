@@ -1176,7 +1176,7 @@ function buildSubrocksTab(container,type,rock,ri) {
     var row=document.createElement('div');
     row.className='sr-row';
     var rowBg = isRecurring ? 'background:rgba(91,33,182,0.04);' : (!sub.targetDate && !isRecurring ? 'background:rgba(163,45,45,0.05);' : '');
-    row.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:start;'+rowBg;
+    row.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;'+rowBg;
 
     var idx=document.createElement('span'); idx.className='sr-idx'; idx.textContent=(ri+1)+'.'+(si+1);
 
@@ -1404,7 +1404,7 @@ function buildMilestonesTab(container,type,rock) {
     tdComment.style.cssText='vertical-align:top;min-width:160px;';
     var commentEl=document.createElement('div');
     commentEl.contentEditable='true';
-    commentEl.style.cssText='font-size:12px;color:var(--tx);min-height:36px;padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
+    commentEl.style.cssText='font-size:12px;color:var(--tx);min-height:28px;max-height:60px;overflow-y:auto;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
     commentEl.innerHTML=sub.comment||'';
     commentEl.setAttribute('data-placeholder','Add a comment…');
     if(!sub.comment) commentEl.style.color='var(--tx3)';
@@ -2095,7 +2095,7 @@ function renderDashPortco() {
         // Comments
         var tdCom=document.createElement('td'); tdCom.style.cssText='vertical-align:top;min-width:150px;'+bts();
         var comEl=document.createElement('div'); comEl.contentEditable='true';
-        comEl.style.cssText='font-size:12px;color:var(--tx);min-height:32px;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
+        comEl.style.cssText='font-size:12px;color:var(--tx);min-height:28px;max-height:60px;overflow-y:auto;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
         comEl.innerHTML=sub.comment||'';
         comEl.addEventListener('blur',function(){ sub.comment=this.innerHTML; if(!sub.comment||sub.comment==='<br>')sub.comment=''; save(); });
         tdCom.appendChild(comEl); tr.appendChild(tdCom);
@@ -2365,7 +2365,7 @@ function buildPersonMilestoneView(name, items) {
       tdCommentI.style.cssText='vertical-align:top;min-width:150px;'+borderTopStyle();
       var commentElI=document.createElement('div');
       commentElI.contentEditable='true';
-      commentElI.style.cssText='font-size:12px;color:var(--tx);min-height:32px;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
+      commentElI.style.cssText='font-size:12px;color:var(--tx);min-height:28px;max-height:60px;overflow-y:auto;padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;line-height:1.5;outline:none;background:var(--surf);word-break:break-word;';
       commentElI.innerHTML=sub.comment||'';
       commentElI.setAttribute('data-placeholder','Add comment…');
       commentElI.addEventListener('focus',function(){ if(!sub.comment) this.style.color='var(--tx)'; });
