@@ -74,6 +74,11 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--fon
 .p-ns{background:#E0DDD6;color:#4A4840}.p-up{background:#F0C8C8;color:#7A1818;}.p-ot{background:#B8DCA0;color:#1E4A08}.p-ar{background:#F5D8A0;color:#6A3806}.p-dn{background:#B8D4F0;color:#0C3D75}.p-dim{background:var(--purple-bg);color:var(--purple-tx);font-size:10px}.p-lead{background:var(--purple-bg);color:var(--purple-tx)}.p-lag{background:var(--teal-bg);color:var(--teal-tx)}.p-rec{background:#D8D4F8;color:#332E88}
 .score-chip{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--surf2);color:var(--tx2);border:1px solid var(--bdr);width:54px;text-align:center;display:inline-block;box-sizing:border-box;}
 .rock-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+.drag-handle{cursor:grab;color:var(--tx3);padding:0 4px;flex-shrink:0;opacity:0.35;user-select:none;font-size:15px;line-height:1;}
+.drag-handle:hover{opacity:1;color:var(--blue);}
+.sr-row.dragging{opacity:0.35;background:var(--blue-bg);}
+.rock-card.drag-over .rock-hdr{outline:2px dashed #1558A0;outline-offset:-2px;background:var(--blue-bg)!important;}
+.drop-zone-active{outline:2px dashed #1558A0;outline-offset:2px;border-radius:6px;}
 .rock-hdr{display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;border-left:4px solid var(--bdr2)}
 .rock-hdr:hover{background:var(--surf2)}
 /* Per-rock accent colors */
@@ -1160,6 +1165,25 @@ function buildRockCard(type,rock,ri) {
 
   var card=document.createElement('div');
   card.className='rock-card';
+  card.setAttribute('data-rock-id', rock.id);
+
+  // Drop target — works on both collapsed and expanded rocks
+  card.addEventListener('dragover', function(e){
+    if(!_drag || _drag.fromRockId === rock.id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    card.classList.add('drag-over');
+  });
+  card.addEventListener('dragleave', function(e){
+    // Only remove if leaving the card entirely
+    if(!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
+  });
+  card.addEventListener('drop', function(e){
+    e.preventDefault();
+    card.classList.remove('drag-over');
+    if(!_drag || _drag.fromRockId === rock.id) return;
+    dragMoveSubrock(_drag.subId, _drag.fromRockId, rock.id);
+  });
 
   // Header
   var hdr=document.createElement('div');
@@ -1283,7 +1307,7 @@ function buildRockCard(type,rock,ri) {
 
 function buildSubrocksTab(container,type,rock,ri) {
   var isMobile = window.innerWidth <= 768;
-  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '24px 1fr 100px 110px 64px 130px 110px 130px 32px';
+  var cols = isMobile ? '20px 1fr 90px 90px 32px' : '20px 24px 1fr 100px 110px 64px 130px 110px 130px 32px';
 
   var hdr=document.createElement('div');
   hdr.className='sr-hdr'; hdr.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;';
@@ -1320,6 +1344,24 @@ function buildSubrocksTab(container,type,rock,ri) {
     row.style.cssText='display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;'+rowBg;
 
     var idx=document.createElement('span'); idx.className='sr-idx'; idx.textContent=(ri+1)+'.'+(si+1);
+
+    // Drag handle
+    var handle=document.createElement('span'); handle.className='drag-handle'; handle.textContent='⠿'; handle.title='Drag to move to another rock';
+    handle.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+
+    row.draggable = true;
+    row.addEventListener('dragstart', function(e){
+      _drag = { subId: sub.id, fromRockId: rock.id };
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', sub.id);
+    });
+    row.addEventListener('dragend', function(){
+      _drag = null;
+      row.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+      document.querySelectorAll('.drop-zone-active').forEach(function(el){ el.classList.remove('drop-zone-active'); });
+    });
 
     var info=document.createElement('div'); info.style.minWidth='0';
     var titleEl=document.createElement('div'); titleEl.className='ed'; titleEl.style.cssText='font-weight:500;white-space:normal;overflow:visible;text-overflow:unset;word-break:break-word;'; titleEl.contentEditable='true'; titleEl.textContent=sub.title||'';
@@ -1402,7 +1444,7 @@ function buildSubrocksTab(container,type,rock,ri) {
     if(isMobile){
       row.appendChild(idx); row.appendChild(info); row.appendChild(portcoSel); row.appendChild(stSel); row.appendChild(delBtn);
     } else {
-      row.appendChild(idx); row.appendChild(info); row.appendChild(ownerEl);
+      row.appendChild(handle); row.appendChild(idx); row.appendChild(info); row.appendChild(ownerEl);
       row.appendChild(portcoSel); row.appendChild(recWrap); row.appendChild(targetInp); row.appendChild(stSel); row.appendChild(doneInp); row.appendChild(delBtn);
     }
     container.appendChild(row);
@@ -1672,6 +1714,24 @@ function buildMilestonesTab(container,type,rock) {
 }
 
 function rockById(id){ return D.rocks.find(function(r){ return r.id===id; })||null; }
+
+// ── Drag & Drop state ──────────────────────────────────────────────────────
+var _drag = null; // { subId, fromRockId }
+
+function dragMoveSubrock(subId, fromRockId, toRockId) {
+  if(fromRockId === toRockId) return;
+  var fromRock = rockById(fromRockId);
+  var toRock   = rockById(toRockId);
+  if(!fromRock || !toRock) return;
+  var sub = fromRock.subrocks.find(function(s){ return s.id === subId; });
+  if(!sub) return;
+  fromRock.subrocks = fromRock.subrocks.filter(function(s){ return s.id !== subId; });
+  toRock.subrocks.push(sub);
+  // Expand the target rock so user sees where it landed
+  D.expanded[toRockId] = true;
+  save();
+  reRender();
+}
 
 function reRenderTab(rockId) {
   var rock = rockById(rockId);
